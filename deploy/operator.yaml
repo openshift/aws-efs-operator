@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: efs-csi-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: efs-csi-operator
+  template:
+    metadata:
+      labels:
+        name: efs-csi-operator
+    spec:
+      serviceAccountName: efs-csi-operator
+      containers:
+        - name: efs-csi-operator
+          # Replace this with the built image name
+          image: REPLACE_IMAGE
+          command:
+          - efs-csi-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "efs-csi-operator"
