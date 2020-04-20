@@ -1,0 +1,7 @@
+apiVersion: efs-csi.managed.openshift.io/v1alpha1
+kind: SharedVolume
+metadata:
+  name: example-sharedvolume
+spec:
+  # Add fields here
+  size: 3
