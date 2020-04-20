@@ -2,6 +2,10 @@ apiVersion: efs-csi.managed.openshift.io/v1alpha1
 kind: SharedVolume
 metadata:
   name: example-sharedvolume
+  namespace: project1
 spec:
-  # Add fields here
-  size: 3
+  accessPointID: fsap-097bd0daaba932e64
+  fileSystemID: fs-484648c8
+status:
+  persistentVolumeClaim: {}
+  status: Creating
