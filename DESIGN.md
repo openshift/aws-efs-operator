@@ -31,6 +31,8 @@ At the cluster level, the operator must create and maintain:
 - A `CSIDriver` resource.
 - A `DaemonSet` running the driver image.
     - This is restricted to running on worker nodes.
+- A `Namespace` for the `DaemonSet` with a `ServiceAccount` and `SecurityContextConstraints` giving the
+  `DaemonSet` the power to manipulate the paths and network resources necessary to make the driver function.
 - A `StorageClass`.
 
 We only need one instance of these artifacts per cluster, and their configuration will not change.
@@ -56,32 +58,29 @@ Its spec shall contain:
 | json            | go            | type   | required? | description |
 |-|-|-|-|-|
 | `fileSystemID`  | FileSystemID  | string | y         | The EFS volume identifier (e.g. `fs-484648c8`) |
-| `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
+| `accessPointID` | AccessPointID | string | n         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
+| `useTLS`        | UseTLS        | bool   | n         | Whether to encrypt data in transit |
 ||||||
 
-
-Because the current version only has support for a single EFS volume, the operator shall refuse to
-create more than one SharedVolume CR.
-
-Due to the complications of managing PVC bindings, the current version will also refuse to allow the
-`fileSystemID` or `accessPointID` to be edited once set.
-In order to switch to another file system, the SharedVolume must be deleted and a new one created.
+Notes:
+- If `accessPointID` is omitted, the volume will be mounted against the root of the NFS export.
+  By default, this has root user and group ownership and 755 permissions, which customer pods by default will
+  not be able to access.
+- `useTLS` will default to `true`, but cannot be set to `false` if using an `accessPointID`.
+- Because the current version only has support for a single EFS volume, the operator shall refuse to
+  create more than one SharedVolume CR.
+- Due to the complications of managing PVC bindings, the current version will also refuse to allow the
+  `fileSystemID` or `accessPointID` to be edited once set. In order to switch to another file system, or switch
+  to/from an access point, or change TLS options, the SharedVolume must be deleted and a new one created.
 
 ## Initialization
-On startup, the operator will create:
-
-| kind      | namespace     | description |
-|-|-|-|
-| DaemonSet | `kube-system` | Runs the CSI driver image |
-| CSIDriver | - ||
-| StorageClass | - ||
-||||
+On startup, the operator will create all the [per-cluster resources](#per-cluster).
 
 ## Reconciliation
 The reconciliation loop will ensure (create if not already extant) a PersistentVolume tied to the
 SharedVolume.FileSystemID and .AccessPointID.
 
-In addition, the reconciliation loop will watch the DaemonSet, CSIDriver, and StorageClass resources,
+In addition, the reconciliation loop will watch the [per-cluster resources](#per-cluster),
 overwriting them wholesale if they change (they shouldn't).
 
 ## Finalization
@@ -97,7 +96,6 @@ The current version has the following limitations:
     - The namespace can't be changed.
     - If the PVC is deleted, the PV will be stuck and unusable without SRE intervention.
 - The customer must manage the AWS side.
-- The DaemonSet must run in the `kube-system` namespace.
 
 ## Future
 In future versions, we would like the operator to be able to:
