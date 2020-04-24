@@ -26,17 +26,8 @@ Its spec shall contain:
 | json            | go            | type   | required? | description |
 |-|-|-|-|-|
 | `fileSystemID`  | FileSystemID  | string | y         | The EFS volume identifier (e.g. `fs-484648c8`) |
-| `accessPointID` | AccessPointID | string | n         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
-| `useTLS`        | UseTLS        | bool   | n         | Whether to encrypt data in transit |
+| `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
 ||||||
-
-Notes:
-- If `accessPointID` is omitted, the volume will be mounted against the root of the NFS export.
-  By default, this has root user and group ownership and 755 permissions, which customer pods by default will
-  not be able to access.
-- `useTLS` will default to `true`, but cannot be set to `false` if using an `accessPointID`.
-
-(Should we use a standard `MountOptions` instead of rolling our own `useTLS`?)
 
 ### AWS
 In the current version, it is the customer's responsibility to create and maintain the necessary artifacts in AWS, per the
