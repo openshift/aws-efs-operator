@@ -29,6 +29,12 @@ Its spec shall contain:
 | `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
 ||||||
 
+Its status shall contain:
+| json            | go            | type   | description |
+|-|-|-|-|
+| `persistentVolumeClaim`  | PersistentVolumeClaim  | string | The name of the PVC created at the behest of this `SharedVolume`. This is the (only) value the consumer needs for the spec of a pod using the volume. |
+||||||
+
 ### AWS
 In the current version, it is the customer's responsibility to create and maintain the necessary artifacts in AWS, per the
 instructions in [this document](https://docs.google.com/document/d/1KdcqZirAdjZ2mJeqOKiMqiNTz4_VVZf7ePD5aB9RVXk).
