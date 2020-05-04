@@ -11,6 +11,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 )
 
 const (
@@ -31,6 +33,23 @@ var sharedVolume = efscsiv1alpha1.SharedVolume{
 	},
 }
 
+// validateSharedVolumeOwner makes sure that `toSharedVolume` on `def` returns a `Request` that points
+// to `sharedVolume`, proving that `def` was created using `setSharedVolumeOwner`, and that worked.
+func validateSharedVolumeOwner(t *testing.T, def runtime.Object, sharedVolume *efscsiv1alpha1.SharedVolume) {
+	// To run toSharedVolume, we have to create a MapObject
+	mo := handler.MapObject{
+		Meta:   def.(metav1.Object),
+		Object: def,
+	}
+	rqList := toSharedVolume(mo)
+	if len(rqList) != 1 {
+		t.Fatalf("Expected one Request, got %d: %v", len(rqList), rqList)
+	}
+	if rqList[0].Name != fakeSVName || rqList[0].Namespace != fakeNamespace {
+		t.Fatalf("Expected request for %s/%s but got %v", fakeNamespace, fakeSVName, rqList[0])
+	}
+}
+
 func TestPVEnsurable(t *testing.T) {
 	pve := pvEnsurable(&sharedVolume)
 
@@ -39,6 +58,9 @@ func TestPVEnsurable(t *testing.T) {
 	expectedDef := pve.GetType()
 	test.LoadYAML(t, expectedDef, "persistentvolume.yaml")
 	test.DoDiff(t, expectedDef, actualDef, false)
+
+	// Verify setSharedVolumeOwner worked by making the round trip to toSharedVolume
+	validateSharedVolumeOwner(t, pve.(*util.EnsurableImpl).Definition, &sharedVolume)
 
 	// Validate EqualFunc
 	equal := pve.(*util.EnsurableImpl).EqualFunc
@@ -66,6 +88,9 @@ func TestPVCEnsurable(t *testing.T) {
 	expectedDef := pvce.GetType()
 	test.LoadYAML(t, expectedDef, "pvc.yaml")
 	test.DoDiff(t, expectedDef, actualDef, false)
+
+	// Verify setSharedVolumeOwner worked by making the round trip to toSharedVolume
+	validateSharedVolumeOwner(t, pvce.(*util.EnsurableImpl).Definition, &sharedVolume)
 
 	// Validate EqualFunc
 	equal := pvce.(*util.EnsurableImpl).EqualFunc
@@ -125,5 +150,19 @@ func TestCache(t *testing.T) {
 	if pvc2.Spec.VolumeName != "pv-project2-my-shared-volume" {
 		t.Fatalf("Expected PVC ensurable to correspond to\nSharedVolume %v\nbut got\nPVC %v",
 			format(sv2), format(pvc2))
+	}
+}
+
+// TestToSharedVolume validates the path where an event arrives for an object that passes
+// ICarePredicate but doesn't have pointers to a SharedVolume.
+func TestToSharedVolumeUnlabeled(t *testing.T) {
+	o := &corev1.Pod{}
+	mo := handler.MapObject{
+		Meta: o,
+		Object: o,
+	}
+	rqList := toSharedVolume(mo)
+	if len(rqList) != 0 {
+		t.Fatalf("Expected no Request, got %v", rqList)
 	}
 }

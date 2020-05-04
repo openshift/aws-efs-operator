@@ -8,7 +8,9 @@ import (
 	util "2uasimojo/efs-csi-operator/pkg/util"
 
 	"fmt"
-	"reflect"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,11 +28,7 @@ func pvEnsurable(sharedVolume *efscsiv1alpha1.SharedVolume) util.Ensurable {
 			ObjType:        &corev1.PersistentVolume{},
 			NamespacedName: pvNamespacedName(sharedVolume),
 			Definition:     pvDefinition(sharedVolume),
-			EqualFunc: func(local, server runtime.Object) bool {
-				return reflect.DeepEqual(
-					local.(*corev1.PersistentVolume).Spec,
-					server.(*corev1.PersistentVolume).Spec)
-			},
+			EqualFunc:      pvEqual,
 		}
 	}
 	return pvBySharedVolume[key]
@@ -48,9 +46,17 @@ func pvNameForSharedVolume(sharedVolume *efscsiv1alpha1.SharedVolume) string {
 	return fmt.Sprintf("pv-%s-%s", sharedVolume.Namespace, sharedVolume.Name)
 }
 
+func pvEqual(local, server runtime.Object) bool {
+	// k8s sets Spec.ClaimRef when binding, so doing a raw DeepEqual() on the Specs is not ideal.
+	return cmp.Equal(
+		local.(*corev1.PersistentVolume).Spec,
+		server.(*corev1.PersistentVolume).Spec,
+		cmpopts.IgnoreFields(corev1.PersistentVolumeSpec{}, "ClaimRef"))
+}
+
 func pvDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.PersistentVolume {
 	filesystem := corev1.PersistentVolumeFilesystem
-	return &corev1.PersistentVolume{
+	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pvNameForSharedVolume(sharedVolume),
 		},
@@ -75,4 +81,6 @@ func pvDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.PersistentV
 			},
 		},
 	}
+	setSharedVolumeOwner(pv, sharedVolume)
+	return pv
 }

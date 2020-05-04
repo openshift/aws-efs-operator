@@ -48,7 +48,7 @@ func pvcDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.Persistent
 	nsname := pvcNamespacedName(sharedVolume)
 	scname := statics.StorageClassName
 	filesystem := corev1.PersistentVolumeFilesystem
-	return &corev1.PersistentVolumeClaim{
+	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nsname.Name,
 			Namespace: nsname.Namespace,
@@ -66,4 +66,6 @@ func pvcDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.Persistent
 			VolumeName:       pvNameForSharedVolume(sharedVolume),
 		},
 	}
+	setSharedVolumeOwner(pvc, sharedVolume)
+	return pvc
 }
