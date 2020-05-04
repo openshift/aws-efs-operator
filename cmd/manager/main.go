@@ -15,6 +15,7 @@ import (
 
 	"2uasimojo/efs-csi-operator/pkg/apis"
 	"2uasimojo/efs-csi-operator/pkg/controller"
+	"2uasimojo/efs-csi-operator/pkg/controller/statics"
 	"2uasimojo/efs-csi-operator/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -27,10 +28,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+
+	securityv1 "github.com/openshift/api/security/v1"
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -122,9 +126,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Add OpenShift security apis to scheme
+	if err := securityv1.Install(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Create k8s client to perform startup tasks.
+	startupClient, err := crclient.New(cfg, crclient.Options{Scheme: mgr.GetScheme()})
+	if err != nil {
+		log.Error(err, "Unable to create operator startup client")
+		os.Exit(1)
+	}
+
+	// Ensure static resources are created.
+	if err := statics.EnsureStatics(log, startupClient); err != nil {
+		log.Error(err, "Couldn't bootstrap static resources")
 		os.Exit(1)
 	}
 
