@@ -33,6 +33,7 @@ Its status shall contain:
 | json            | go            | type   | description |
 |-|-|-|-|
 | `persistentVolumeClaim`  | PersistentVolumeClaim  | string | The name of the PVC created at the behest of this `SharedVolume`. This is the (only) value the consumer needs for the spec of a pod using the volume. |
+| `status`                 | Status                 | string | String indicating the state of the PV/PVC associated with this SharedVolume. Possible values are "Creating", "Ready", "Deleting", "Error". (Yes, this field will be `SharedVolume.Status.Status`.) |
 ||||||
 
 ### AWS
@@ -83,9 +84,7 @@ On each iteration of the reconciliation loop, the operator shall react to:
     but should continue to monitor the PV/PVC periodically or in the background until they are gone.
 - **Changed** `SharedVolume` resources.
   It is not possible to edit a PersistentVolume, and rebinding a PVC is more trouble than it's worth.
-  Thus when a `SharedVolume` is changed, we will simply:
-  - Delete the PVC and PV as above.
-  - Create a new PV and PVC as above.
+  Thus when a `SharedVolume` is changed, we will simply un-edit it, restoring the original `Spec` values, which will be discovered from the associated PV.
 - Changes to an operator-owned `PersistentVolume` or `PersistentVolumeClaim`.
   - It shouldn't actually be possible to edit a PV, or make changes to a PVC that actually matter,
     so the operator can (probably) ignore these.
