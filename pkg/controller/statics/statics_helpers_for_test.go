@@ -3,10 +3,8 @@ package statics
 import (
 	"testing"
 
-	util "2uasimojo/efs-csi-operator/pkg/util"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+	"2uasimojo/efs-csi-operator/pkg/test"
+	"2uasimojo/efs-csi-operator/pkg/util"
 
 	"golang.org/x/net/context"
 
@@ -16,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -26,20 +23,6 @@ import (
 const (
 	expectedNumStatics = 5
 )
-
-// Common options we're passing into cmp.Diff.
-var diffOpts cmp.Options
-
-func init() {
-	diffOpts = cmp.Options{
-		// We want to ignore TypeMeta in all cases, because it's a given of the type itself.
-		cmpopts.IgnoreTypes(metav1.TypeMeta{}),
-		// We ignore the ResourceVersion because it gets set by the server and is unpredictable/opaque.
-		// We ignore labels *in cmp.Diff* because sometimes we're checking a virgin resource definition
-		// from a getter (label validation is done separately).
-		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "Labels"),
-	}
-}
 
 // checkNumStatics is a helper to guard against static resources being added in the future without tests
 // being updated. Use it from any test that would need to be fixed if new statics are added.
@@ -91,13 +74,7 @@ func checkStatics(t *testing.T, client crclient.Client) map[string]runtime.Objec
 		if err := client.Get(ctx, i.nsname, i.obj); err != nil {
 			t.Fatalf("Couldn't get %s: %v", i.name, err)
 		}
-		diff := cmp.Diff(findStatic(i.nsname).(*util.EnsurableImpl).Definition, i.obj, diffOpts...)
-		if diff != "" {
-			t.Fatal("Objects differ: -expected, +actual\n", diff)
-		}
-		if !util.DoICare(i.obj) {
-			t.Fatalf("Missing label for %s", i.name)
-		}
+		test.DoDiff(t, findStatic(i.nsname).(*util.EnsurableImpl).Definition, i.obj, true)
 		ret[i.name] = i.obj
 	}
 
