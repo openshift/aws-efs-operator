@@ -29,6 +29,8 @@ type Ensurable interface {
 	// Ensure creates an Ensurable resource if it doesn't already exist, or updates it if it exists
 	// and differs from the gold standard.
 	Ensure(logr.Logger, crclient.Client) error
+	// Delete makes sure the resource represented by the Ensurable is gone.
+	Delete(logr.Logger, crclient.Client) error
 }
 
 // EnsurableImpl provides the implementation of the Ensurable interface.
@@ -84,7 +86,8 @@ func (e EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
 	} else {
 		log.Info("Update needed. Updating...")
 		// Debug: print out _how_ the objects differ.
-		log.V(2).Info(cmp.Diff(latestObj, foundObj))
+		// This will show what we're changing *from* as '-' and what we're changing *to* as '+'.
+		log.V(2).Info(cmp.Diff(foundObj, latestObj))
 		// Update uses ResourceVersion as a consistency marker to make sure an out-of-band update
 		// didn't happen since our Get.
 		latestObj.(metav1.Object).SetResourceVersion(foundObj.(metav1.Object).GetResourceVersion())
@@ -103,6 +106,37 @@ func (e EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
 	// So push the latest version into the cache.
 	e.latestVersion = latestObj
 
+	return nil
+}
+
+// Delete implements Ensurable
+func (e EnsurableImpl) Delete(log logr.Logger, client crclient.Client) error {
+	// Let's clear the cache in case the object needs to be recreated at some point
+	e.latestVersion = nil
+
+	rname := e.GetNamespacedName()
+	foundObj := e.GetType()
+	if err := client.Get(context.TODO(), rname, foundObj); err != nil {
+		if errors.IsNotFound(err) {
+			// Already gone. Nothing to do
+			return nil
+		}
+		// Some other error. That's bad
+		log.Error(err, "Failed to retrieve.", "resource", rname)
+		return err
+	}
+
+	log.Info("Deleting.", "resource", rname)
+	if err := client.Delete(context.TODO(), foundObj); err != nil {
+		if errors.IsNotFound(err) {
+			// It got deleted out-of-band. That's fine
+			return nil
+		}
+		log.Error(err, "Failed to delete.", "resource", rname)
+		return err
+	}
+
+	// Cool.
 	return nil
 }
 

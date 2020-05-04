@@ -204,6 +204,88 @@ func TestEnsureExistsUpdateSuccess(t *testing.T) {
 	}
 }
 
+// TestDeleteAlreadyGone tests the green path where the resource was already deleted
+func TestDeleteAlreadyGone(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := mkMocks(ctrl)
+
+	m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(fx.NotFound)
+
+	if err := m.ensurable.Delete(m.log, m.client); err != nil {
+		t.Errorf("Delete(): expected nil, got %v", err)
+	}
+}
+
+// TestDeleteGetError tests the error path where the initial retrieval fails
+func TestDeleteGetError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := mkMocks(ctrl)
+
+	gomock.InOrder(
+		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(fx.AlreadyExists),
+		m.log.EXPECT().Error(fx.AlreadyExists, "Failed to retrieve.", "resource", nsname),
+	)
+
+	if err := m.ensurable.Delete(m.log, m.client); err != fx.AlreadyExists {
+		t.Errorf("Delete(): expected error %v; got %v", fx.AlreadyExists, err)
+	}
+}
+
+// TestDeleteOutOfBand tests the green (well, chartreuse, I guess) path where the object exists
+// when we initially retrieve it, but then gets deleted between then and when we attempt to delete.
+func TestDeleteOutOfBand(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := mkMocks(ctrl)
+
+	gomock.InOrder(
+		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
+		m.log.EXPECT().Info("Deleting.", "resource", nsname),
+		m.client.EXPECT().Delete(todo, m.getTypeAndServerObj).Return(fx.NotFound),
+	)
+
+	if err := m.ensurable.Delete(m.log, m.client); err != nil {
+		t.Errorf("Delete(): expected nil, got %v", err)
+	}
+}
+
+// TestDeleteDeleteError tests the error path where our Delete call fails.
+func TestDeleteDeleteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := mkMocks(ctrl)
+
+	gomock.InOrder(
+		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
+		m.log.EXPECT().Info("Deleting.", "resource", nsname),
+		m.client.EXPECT().Delete(todo, m.getTypeAndServerObj).Return(fx.AlreadyExists),
+		m.log.EXPECT().Error(fx.AlreadyExists, "Failed to delete.", "resource", nsname),
+	)
+
+	if err := m.ensurable.Delete(m.log, m.client); err != fx.AlreadyExists {
+		t.Errorf("Delete(): expected error %v; got %v", fx.AlreadyExists, err)
+	}
+}
+
+// TestDeleteDeletes tests the green path where the resource is found and deleted successfully
+func TestDeleteDeletes(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := mkMocks(ctrl)
+
+	gomock.InOrder(
+		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
+		m.log.EXPECT().Info("Deleting.", "resource", nsname),
+		m.client.EXPECT().Delete(todo, m.getTypeAndServerObj).Return(nil),
+	)
+
+	if err := m.ensurable.Delete(m.log, m.client); err != nil {
+		t.Errorf("Delete(): expected nil, got %v", err)
+	}
+}
+
 // TestGetType proves that GetType() returns a new object rather than reusing the one the
 // Ensurable is initialized with.
 func TestGetType(t *testing.T) {

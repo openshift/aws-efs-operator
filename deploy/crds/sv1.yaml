@@ -1,8 +1,7 @@
 apiVersion: efs-csi.managed.openshift.io/v1alpha1
 kind: SharedVolume
 metadata:
-  name: example-sharedvolume
-  namespace: project1
+  name: sv1
 spec:
   accessPointID: fsap-0123456789abcdef
   fileSystemID: fs-0123cdef

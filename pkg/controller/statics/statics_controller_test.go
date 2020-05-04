@@ -1,14 +1,15 @@
 package statics
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/util"
 	"2uasimojo/efs-csi-operator/pkg/fixtures"
+	"2uasimojo/efs-csi-operator/pkg/test"
+	"2uasimojo/efs-csi-operator/pkg/util"
 	"context"
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/go-logr/logr"
+	"github.com/golang/mock/gomock"
 	securityv1 "github.com/openshift/api/security/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,8 +22,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var nullResult = reconcile.Result{}
-var requeueResult = reconcile.Result{Requeue: true}
+// TODO: Test add()/watches somehow?
 
 func setup() (logr.Logger, *ReconcileStatics) {
 	logf.SetLogger(logf.ZapLogger(true))
@@ -67,8 +67,8 @@ func TestReconcile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Didn't expect an error, but got %v", err)
 		}
-		if !reflect.DeepEqual(res, nullResult) {
-			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", nullResult, res)
+		if !reflect.DeepEqual(res, test.NullResult) {
+			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
 		}
 	}
 
@@ -87,8 +87,8 @@ func TestReconcile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Didn't expect an error, but got %v", err)
 	}
-	if !reflect.DeepEqual(res, nullResult) {
-		t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", nullResult, res)
+	if !reflect.DeepEqual(res, test.NullResult) {
+		t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
 	}
 
 	// And now it should be golden again. Check all the things, to make sure we didn't do something bad to them.
@@ -103,8 +103,8 @@ func TestReconcileUnexpected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if !reflect.DeepEqual(res, nullResult) {
-		t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", nullResult, res)
+	if !reflect.DeepEqual(res, test.NullResult) {
+		t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestReconcileEnsureFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if !reflect.DeepEqual(res, requeueResult) {
+	if !reflect.DeepEqual(res, test.RequeueResult) {
 		t.Fatalf("Expected a requeue, got %v", res)
 	}
 }
