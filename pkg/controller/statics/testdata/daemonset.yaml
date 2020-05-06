@@ -53,6 +53,7 @@ spec:
               mountPath: /var/run/efs
           ports:
             - containerPort: 9809
+              hostPort: 9809
               name: healthz
               protocol: TCP
           livenessProbe:

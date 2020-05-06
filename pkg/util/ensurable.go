@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -80,6 +81,8 @@ func (e EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
 		log.Info("No update needed.")
 	} else {
 		log.Info("Update needed. Updating...")
+		// Debug: print out _how_ the objects differ.
+		log.V(2).Info(cmp.Diff(latestObj, foundObj))
 		// Update uses ResourceVersion as a consistency marker to make sure an out-of-band update
 		// didn't happen since our Get.
 		latestObj.(metav1.Object).SetResourceVersion(foundObj.(metav1.Object).GetResourceVersion())

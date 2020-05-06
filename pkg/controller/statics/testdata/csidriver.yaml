@@ -5,3 +5,6 @@ metadata:
   name: efs.csi.aws.com
 spec:
   attachRequired: false
+  podInfoOnMount: false
+  volumeLifecycleModes:
+    - Persistent
