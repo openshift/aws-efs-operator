@@ -146,6 +146,9 @@ func TestEnsureExistsUpdateError(t *testing.T) {
 		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
 		m.log.EXPECT().Info("Found. Checking whether update is needed.", "resource", nsname),
 		m.log.EXPECT().Info("Update needed. Updating..."),
+		m.log.EXPECT().V(2).Return(m.log),
+		// Don't bother to check the debug message
+		m.log.EXPECT().Info(gomock.Any()),
 		m.client.EXPECT().Update(todo, m.getterAndCachedObj).Return(fx.NotFound),
 		m.log.EXPECT().Error(fx.NotFound, "Failed to update.", "resource", nsname),
 	)
@@ -181,6 +184,9 @@ func TestEnsureExistsUpdateSuccess(t *testing.T) {
 		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
 		m.log.EXPECT().Info("Found. Checking whether update is needed.", "resource", nsname),
 		m.log.EXPECT().Info("Update needed. Updating..."),
+		m.log.EXPECT().V(2).Return(m.log),
+		// Don't bother to check the debug message
+		m.log.EXPECT().Info(gomock.Any()),
 		m.client.EXPECT().Update(todo, m.getterAndCachedObj).Return(nil),
 		m.log.EXPECT().Info("Updated.", "resource", nsname),
 	)

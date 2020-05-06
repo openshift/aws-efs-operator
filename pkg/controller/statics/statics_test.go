@@ -217,23 +217,23 @@ func Test_storageClassEqual(t *testing.T) {
 	sc1 := getStorageClass().(*storagev1.StorageClass)
 	sc2 := getStorageClass().(*storagev1.StorageClass)
 
-	if !storageClassEqual(sc1, sc1) {
+	if !equalOtherThanMeta(sc1, sc1) {
 		t.Error("Expected object to compare equal to itself.")
 	}
 
-	if !storageClassEqual(sc1, sc2) {
+	if !equalOtherThanMeta(sc1, sc2) {
 		t.Errorf("Getter should always return objects that compare equal.\n%v\n%v", sc1, sc2)
 	}
 
 	// Mucking with metadata shouldn't affect equality
 	sc2.ObjectMeta.SelfLink = "/foo/bar/baz"
-	if !storageClassEqual(sc1, sc2) {
+	if !equalOtherThanMeta(sc1, sc2) {
 		t.Errorf("Metadata should not affect equality.\n%v\n%v", sc1, sc2)
 	}
 
 	// But these fields should
 	sc2.Provisioner = "foo"
-	if storageClassEqual(sc1, sc2) {
+	if equalOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of Provisioner should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 	// reset
@@ -241,7 +241,7 @@ func Test_storageClassEqual(t *testing.T) {
 
 	recycle := corev1.PersistentVolumeReclaimRecycle
 	sc2.ReclaimPolicy = &recycle
-	if storageClassEqual(sc1, sc2) {
+	if equalOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of ReclaimPolicy should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 	// reset
@@ -249,7 +249,7 @@ func Test_storageClassEqual(t *testing.T) {
 
 	wf1c := storagev1.VolumeBindingWaitForFirstConsumer
 	sc2.VolumeBindingMode = &wf1c
-	if storageClassEqual(sc1, sc2) {
+	if equalOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of VolumeBindingMode should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 }
@@ -284,35 +284,35 @@ func Test_securityContextConstraintsEqual(t *testing.T) {
 	scc1 := getSecurityContextConstraints().(*securityv1.SecurityContextConstraints)
 	scc2 := getSecurityContextConstraints().(*securityv1.SecurityContextConstraints)
 
-	if !securityContextConstraintsEqual(scc1, scc1) {
+	if !equalOtherThanMeta(scc1, scc1) {
 		t.Error("Expected object to compare equal to itself.")
 	}
 
-	if !securityContextConstraintsEqual(scc1, scc2) {
+	if !equalOtherThanMeta(scc1, scc2) {
 		t.Errorf("Getter should always return objects that compare equal.\n%v\n%v", scc1, scc2)
 	}
 
 	// Mucking with metadata shouldn't affect equality
 	scc2.ObjectMeta.SelfLink = "/foo/bar/baz"
-	if !securityContextConstraintsEqual(scc1, scc2) {
+	if !equalOtherThanMeta(scc1, scc2) {
 		t.Errorf("Metadata should not affect equality.\n%v\n%v", scc1, scc2)
 	}
 
 	// Pick a few fields to test
 	scc2.AllowHostIPC = false
-	if securityContextConstraintsEqual(scc1, scc2) {
+	if equalOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing AllowHostIPC should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 	scc2.AllowHostIPC = true
 
 	scc2.RunAsUser.Type = securityv1.RunAsUserStrategyMustRunAs
-	if securityContextConstraintsEqual(scc1, scc2) {
+	if equalOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing RunAsUser.Type should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 	scc2.RunAsUser.Type = securityv1.RunAsUserStrategyRunAsAny
 
 	scc2.Users = append(scc2.Users, "foo")
-	if securityContextConstraintsEqual(scc1, scc2) {
+	if equalOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing Users should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 }

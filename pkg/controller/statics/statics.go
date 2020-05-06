@@ -67,7 +67,8 @@ var staticResources []util.Ensurable = []util.Ensurable{
 		ObjType:        &securityv1.SecurityContextConstraints{},
 		NamespacedName: types.NamespacedName{Name: sccName},
 		Definition:     getSecurityContextConstraints(),
-		EqualFunc:      securityContextConstraintsEqual,
+		// SCC has no Spec; the meat is at the top level
+		EqualFunc:      equalOtherThanMeta,
 	},
 	// DaemonSet
 	util.EnsurableImpl{
@@ -88,7 +89,8 @@ var staticResources []util.Ensurable = []util.Ensurable{
 		ObjType:        &storagev1.StorageClass{},
 		NamespacedName: types.NamespacedName{Name: StorageClassName},
 		Definition:     getStorageClass(),
-		EqualFunc:      storageClassEqual,
+		// StorageClass has no Spec; the meat is at the top level
+		EqualFunc:      equalOtherThanMeta,
 	},
 }
 
@@ -120,6 +122,13 @@ func EnsureStatics(log logr.Logger, client crclient.Client) error {
 // (in any significant way)
 func alwaysEqual(local, server runtime.Object) bool {
 	return true
+}
+
+// equalOtherThanMeta is a DeepEquals that ignores ObjectMeta and TypeMeta.
+// Use when a DeepEqual on Spec won't work, e.g. when the meat of the object is at the top level
+// and/or there _is_ no Spec.
+func equalOtherThanMeta(local, server runtime.Object) bool {
+	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}, metav1.TypeMeta{}))
 }
 
 // getNamespace in which the DaemonSet will run.
@@ -154,30 +163,20 @@ func getStorageClass() runtime.Object {
 		VolumeBindingMode: &immediate,
 	}
 }
-func storageClassEqual(ro1, ro2 runtime.Object) bool {
-	sc1 := ro1.(*storagev1.StorageClass)
-	sc2 := ro2.(*storagev1.StorageClass)
-	if sc1.Provisioner != sc2.Provisioner {
-		return false
-	}
-	if *sc1.ReclaimPolicy != *sc2.ReclaimPolicy {
-		return false
-	}
-	if *sc1.VolumeBindingMode != *sc2.VolumeBindingMode {
-		return false
-	}
-	return true
-}
 
 // getCSIDriver resource itself.
 func getCSIDriver() runtime.Object {
-	attachRequired := false
+	falseVal := false
 	return &storagev1beta1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: CSIDriverName,
 		},
 		Spec: storagev1beta1.CSIDriverSpec{
-			AttachRequired: &attachRequired,
+			AttachRequired: &falseVal,
+			PodInfoOnMount: &falseVal,
+			VolumeLifecycleModes: []storagev1beta1.VolumeLifecycleMode{
+				storagev1beta1.VolumeLifecyclePersistent,
+			},
 		},
 	}
 }
@@ -233,12 +232,6 @@ func getSecurityContextConstraints() runtime.Object {
 		Volumes: []securityv1.FSType{"*"},
 	}
 }
-func securityContextConstraintsEqual(local, server runtime.Object) bool {
-	// All the meat of a SCC is at the top level :(
-	// So we can't (well, shouldn't) use DeepEqual because we really don't care
-	// about ObjectMeta. But we don't really want to inspect every field, so...
-	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}))
-}
 
 // getDaemonSet that runs the driver image and provisions the volume mounts.
 func getDaemonSet() runtime.Object {
@@ -284,6 +277,7 @@ func getDaemonSet() runtime.Object {
 	}
 }
 func daemonSetEqual(local, server runtime.Object) bool {
+	// TODO: k8s updates fields in the Spec :(
 	return reflect.DeepEqual(
 		local.(*appsv1.DaemonSet).Spec,
 		server.(*appsv1.DaemonSet).Spec)
@@ -342,6 +336,7 @@ func getPluginContainer() corev1.Container {
 			{
 				Name:          "healthz",
 				ContainerPort: 9809,
+				HostPort:      9809,
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
