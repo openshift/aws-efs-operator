@@ -21,20 +21,21 @@ This operator supports:
 ### Custom Resource Definition
 This operator's Custom Resource shall be named **SharedVolume**.
 
-Its spec shall contain:
+Its Spec shall contain:
 
 | json            | go            | type   | required? | description |
-|-|-|-|-|-|
+| -               | -             | -      | -         | -           |
 | `fileSystemID`  | FileSystemID  | string | y         | The EFS volume identifier (e.g. `fs-484648c8`) |
 | `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
-||||||
+|                 |               |        |           |             |
 
-Its status shall contain:
-| json            | go            | type   | description |
-|-|-|-|-|
-| `persistentVolumeClaim`  | PersistentVolumeClaim  | string | The name of the PVC created at the behest of this `SharedVolume`. This is the (only) value the consumer needs for the spec of a pod using the volume. |
-| `status`                 | Status                 | string | String indicating the state of the PV/PVC associated with this SharedVolume. Possible values are "Creating", "Ready", "Deleting", "Error". (Yes, this field will be `SharedVolume.Status.Status`.) |
-||||||
+Its Status shall contain:
+| json       | go       | type                      | description |
+| -          | -        | -                         | -           |
+| `claimRef` | ClaimRef | TypedLocalObjectReference | Reference to the PVC created at the behest of this `SharedVolume`. This is the (only) thing the consumer needs to know to build the spec of a pod using the volume. |
+| `phase`    | Phase    | string                    | String indicating the state of the PV/PVC associated with this SharedVolume. Possible values are "Pending", "Ready", "Deleting", "Failed". (The name "`Phase`" and the values are roughly inspired by what's seen in `PersistentVolumeStatus`) |
+| `message`  | Message  | string                    | Human-readable information augmenting the `Phase`. (Will probably just be the latest error string when `phase` is `Failed`, and empty otherwise.) |
+|            |          |                           |             |
 
 ### AWS
 In the current version, it is the customer's responsibility to create and maintain the necessary artifacts in AWS, per the
