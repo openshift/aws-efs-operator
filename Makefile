@@ -1,4 +1,8 @@
-GOTEST_PACKAGES?=./...
+GOTEST_PACKAGES?=./cmd/... ./pkg/...
+
+generate:
+	# TODO(efried): ensure deps for this (e.g. mockgen)
+	go generate $(GOTEST_PACKAGES)
 
 test:
 	go test $(GOTEST_PACKAGES)
