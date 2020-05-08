@@ -2,6 +2,7 @@ package statics
 
 import (
 	"2uasimojo/efs-csi-operator/pkg/fixtures"
+	"2uasimojo/efs-csi-operator/pkg/util"
 	"fmt"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestEnsureStatics(t *testing.T) {
 	}
 
 	// Make sure all of our static resources got created.
-	statics = checkStatics(t, mockClient)
+	checkStatics(t, mockClient)
 
 	logger.Info("<== Phase: Bootstrap")
 
@@ -100,7 +101,7 @@ func TestEnsureStatics(t *testing.T) {
 	if err := EnsureStatics(logger, mockClient); err != nil {
 		t.Fatalf("EnsureStatics (recover) failed with %v", err)
 	}
-	statics = checkStatics(t, mockClient)
+	checkStatics(t, mockClient)
 
 	logger.Info("<== Phase: Recover")
 }
@@ -145,49 +146,34 @@ func Test_static_GetType(t *testing.T) {
 
 	// Namespace
 	nsn = types.NamespacedName{Name: namespaceName}
-	if _, ok := staticResourceMap[nsn].GetType().(*corev1.Namespace); !ok {
+	if _, ok := findStatic(nsn).GetType().(*corev1.Namespace); !ok {
 		t.Fatal("GetType() returned the wrong type for Namespace static resource.")
 	}
 	// ServiceAccount
 	nsn = types.NamespacedName{Name: serviceAccountName, Namespace: namespaceName}
-	if _, ok := staticResourceMap[nsn].GetType().(*corev1.ServiceAccount); !ok {
+	if _, ok := findStatic(nsn).GetType().(*corev1.ServiceAccount); !ok {
 		t.Fatal("GetType() returned the wrong type for ServiceAccount static resource.")
 	}
 	// SecurityContextConstraints
 	nsn = types.NamespacedName{Name: sccName}
-	if _, ok := staticResourceMap[nsn].GetType().(*securityv1.SecurityContextConstraints); !ok {
+	if _, ok := findStatic(nsn).GetType().(*securityv1.SecurityContextConstraints); !ok {
 		t.Fatal("GetType() returned the wrong type for SecurityContextConstraints static resource.")
 	}
 	// DaemonSet
 	nsn = types.NamespacedName{Name: daemonSetName, Namespace: namespaceName}
-	if _, ok := staticResourceMap[nsn].GetType().(*appsv1.DaemonSet); !ok {
+	if _, ok := findStatic(nsn).GetType().(*appsv1.DaemonSet); !ok {
 		t.Fatal("GetType() returned the wrong type for DaemonSet static resource.")
 	}
 	// CSIDriver
 	nsn = types.NamespacedName{Name: CSIDriverName}
-	if _, ok := staticResourceMap[nsn].GetType().(*storagev1beta1.CSIDriver); !ok {
+	if _, ok := findStatic(nsn).GetType().(*storagev1beta1.CSIDriver); !ok {
 		t.Fatal("GetType() returned the wrong type for CSIDriver static resource.")
 	}
 	// StorageClass
 	nsn = types.NamespacedName{Name: StorageClassName}
-	if _, ok := staticResourceMap[nsn].GetType().(*storagev1.StorageClass); !ok {
+	if _, ok := findStatic(nsn).GetType().(*storagev1.StorageClass); !ok {
 		t.Fatal("GetType() returned the wrong type for StorageClass static resource.")
 	}
-}
-
-
-// TestGetters validates the resource object returned by the defGetter helper for
-// each static against a "golden" hardcoded version.
-func TestGetters(t *testing.T) {
-	checkNumStatics(t)
-
-	validateNamespace(t, getNamespace().(*corev1.Namespace), false)
-	validateServiceAccount(t, getServiceAccount().(*corev1.ServiceAccount), false)
-	validateStorageClass(t, getStorageClass().(*storagev1.StorageClass), false)
-	validateCSIDriver(t, getCSIDriver().(*storagev1beta1.CSIDriver), false)
-	validateSecurityContextConstraints(
-		t, getSecurityContextConstraints().(*securityv1.SecurityContextConstraints), false)
-	validateDaemonSet(t, getDaemonSet().(*appsv1.DaemonSet), false)
 }
 
 func Test_alwaysEqual(t *testing.T) {
@@ -202,7 +188,10 @@ func Test_alwaysEqual(t *testing.T) {
 	}{
 		{"nils", args{nil, nil}},
 		{"empty pods", args{&corev1.Pod{}, &corev1.Pod{}}},
-		{"Things that are super different", args{getDaemonSet(), getNamespace()}},
+		{"Things that are super different", args{
+			staticResources[0].(*util.EnsurableImpl).Definition,
+			staticResources[4].(*util.EnsurableImpl).Definition,
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -214,8 +203,8 @@ func Test_alwaysEqual(t *testing.T) {
 }
 
 func Test_storageClassEqual(t *testing.T) {
-	sc1 := getStorageClass().(*storagev1.StorageClass)
-	sc2 := getStorageClass().(*storagev1.StorageClass)
+	sc1 := staticResourceMap[StorageClassName].(*util.EnsurableImpl).Definition.(*storagev1.StorageClass)
+	sc2 := sc1.DeepCopy()
 
 	if !equalOtherThanMeta(sc1, sc1) {
 		t.Error("Expected object to compare equal to itself.")
@@ -255,8 +244,8 @@ func Test_storageClassEqual(t *testing.T) {
 }
 
 func Test_csiDriverEqual(t *testing.T) {
-	cd1 := getCSIDriver().(*storagev1beta1.CSIDriver)
-	cd2 := getCSIDriver().(*storagev1beta1.CSIDriver)
+	cd1 := staticResourceMap[CSIDriverName].(*util.EnsurableImpl).Definition.(*storagev1beta1.CSIDriver)
+	cd2 := cd1.DeepCopy()
 
 	if !csiDriverEqual(cd1, cd1) {
 		t.Error("Expected object to compare equal to itself.")
@@ -281,8 +270,8 @@ func Test_csiDriverEqual(t *testing.T) {
 }
 
 func Test_securityContextConstraintsEqual(t *testing.T) {
-	scc1 := getSecurityContextConstraints().(*securityv1.SecurityContextConstraints)
-	scc2 := getSecurityContextConstraints().(*securityv1.SecurityContextConstraints)
+	scc1 := staticResourceMap[sccName].(*util.EnsurableImpl).Definition.(*securityv1.SecurityContextConstraints)
+	scc2 := scc1.DeepCopy()
 
 	if !equalOtherThanMeta(scc1, scc1) {
 		t.Error("Expected object to compare equal to itself.")
@@ -318,8 +307,8 @@ func Test_securityContextConstraintsEqual(t *testing.T) {
 }
 
 func Test_daemonSetEqual(t *testing.T) {
-	ds1 := getDaemonSet().(*appsv1.DaemonSet)
-	ds2 := getDaemonSet().(*appsv1.DaemonSet)
+	ds1 := staticResourceMap[daemonSetName].(*util.EnsurableImpl).Definition.(*appsv1.DaemonSet)
+	ds2 := ds1.DeepCopy()
 
 	if !daemonSetEqual(ds1, ds1) {
 		t.Error("Expected object to compare equal to itself.")

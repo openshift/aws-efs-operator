@@ -3,6 +3,7 @@ module 2uasimojo/efs-csi-operator
 go 1.13
 
 require (
+	github.com/go-bindata/go-bindata v3.1.2+incompatible // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/golang/mock v1.3.1
 	github.com/google/go-cmp v0.3.1

@@ -72,8 +72,8 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// We got this far, so it's a type we're watching that also passed our filter. That means it
 	// ought to be one of our statics.
-	s, ok := staticResourceMap[request.NamespacedName]
-	if !ok {
+	s := findStatic(request.NamespacedName)
+	if s == nil {
 		// This should really never happen.
 		reqLogger.Error(nil, "Got an unexpected reconcile request.", "request", request)
 		// Don't requeue this one, either explicitly (Requeue=true) or implicitly (by returning an error)
