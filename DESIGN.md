@@ -1,16 +1,16 @@
 # Design
 
 ## Objectives
-- Access to a shared writable file system
-- from multiple pods
-- even when those pods are on different worker nodes, and
-- even when those nodes are in different availability zones.
+- Access to a **shared writable file system**
+- from **multiple pods**
+- even when those pods are on **different worker nodes**, and
+- even when those nodes are in **different availability zones**.
 - Do not require the customer to possess any special permissions, roles, etc.
 
 ## Environment
 This operator supports:
 - **OpenShift Dedicated** with
-- **BYOC clusters** backed by
+- **CCS clusters** backed by
 - **AWS**.
 - **Shared storage** backed by
 - **EFS volumes**, by way of
@@ -39,7 +39,7 @@ Its Status shall contain:
 
 ### AWS
 In the current version, it is the customer's responsibility to create and maintain the necessary artifacts in AWS, per the
-instructions in [this document](https://docs.google.com/document/d/1KdcqZirAdjZ2mJeqOKiMqiNTz4_VVZf7ePD5aB9RVXk).
+instructions in [this document](https://access.redhat.com/articles/5025181).
 
 This operator will accept the following AWS data as input:
 - The EFS volume's file system ID.
@@ -53,7 +53,7 @@ At the cluster level, the operator must create the following upon initialization
 - A `CSIDriver` resource.
 - A `DaemonSet` running the driver image.
     - This is restricted to running on worker nodes.
-- A `Namespace` for the `DaemonSet` with a `ServiceAccount` and `SecurityContextConstraints` giving the
+- A `ServiceAccount` and `SecurityContextConstraints` giving the
   `DaemonSet` the power to manipulate the paths and network resources necessary to make the driver function.
 - A `StorageClass`.
 
@@ -68,8 +68,8 @@ Thus, by extension, we must have one `PersistentVolume` per namespace, despite t
 `PersistentVolume` is not inherently namespace-scoped.
 
 Thus, for each `SharedVolume`, the operator will create and maintain:
-- A `PersistentVolume` tied to the `SharedVolume.FileSystemID` and (optionally) `.AccessPointID`.
-- A `PersistentVolumeClaim` against the PV, in the same namespace as the SharedVolume resource.
+- A `PersistentVolume` tied to the `SharedVolume.FileSystemID` and `.AccessPointID`.
+- A `PersistentVolumeClaim` against the PV, in the same namespace as the `SharedVolume` resource.
 
 These artifacts will be owned by the operator.
 
@@ -82,21 +82,15 @@ On each iteration of the reconciliation loop, the operator shall react to:
 - **Deleted** `SharedVolume` resources:
   - Delete the PVC and PV associated with the `SharedVolume`.
     This may fail until the customer has deleted any pods using the PVC, so the operator shouldn't wait for completion,
-    but should continue to monitor the PV/PVC periodically or in the background until they are gone.
+    but should continue to attempt deletion until successful. Only then should the SharedVolume's finalizer be removed.
 - **Changed** `SharedVolume` resources.
   It is not possible to edit a PersistentVolume, and rebinding a PVC is more trouble than it's worth.
   Thus when a `SharedVolume` is changed, we will simply un-edit it, restoring the original `Spec` values, which will be discovered from the associated PV.
 - Changes to an operator-owned `PersistentVolume` or `PersistentVolumeClaim`.
   - It shouldn't actually be possible to edit a PV, or make changes to a PVC that actually matter,
-    so the operator can (probably) ignore these.
+    so the operator can (probably) ignore these. But overwrite with the golden definition anyway.
   - If an operator-owned PV or PVC is deleted, the operator should ensure both of the related artifacts are
-    deleted and should recreate both as if the associated `SharedVolume` were new.
-
-### Finalization
-Delete all the things.
-
-The customer's PV and PVC may refuse to delete if the customer has not deleted any pods using the claim,
-so the finalizers should continue to run until these artifacts are gone.
+    deleted and should recreate both as if the associated `SharedVolume` were new. (TODO: we're not doing this at the moment.)
 
 ## Future
 In future versions, we would like the operator to be able to manage the EFS volumes and access points.
