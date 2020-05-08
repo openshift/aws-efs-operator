@@ -92,7 +92,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// And now it should be golden again. Check all the things, to make sure we didn't do something bad to them.
-	resources = checkStatics(t, r.client)
+	checkStatics(t, r.client)
 }
 
 // TestReconcileUnexpected tests the code path where a resource we don't care about somehow makes it past the filter

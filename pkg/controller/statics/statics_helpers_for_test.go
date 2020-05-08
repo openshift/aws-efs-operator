@@ -3,7 +3,6 @@ package statics
 import (
 	"testing"
 
-	"2uasimojo/efs-csi-operator/pkg/test"
 	util "2uasimojo/efs-csi-operator/pkg/util"
 
 	"github.com/google/go-cmp/cmp"
@@ -58,92 +57,54 @@ func checkStatics(t *testing.T, client crclient.Client) map[string]runtime.Objec
 	ret := make(map[string]runtime.Object)
 	ctx := context.TODO()
 
-	ns := &corev1.Namespace{}
-	if err := client.Get(ctx, types.NamespacedName{Name: namespaceName}, ns); err != nil {
-		t.Fatalf("Couldn't get Namespace: %v", err)
+	for _, i := range []struct {
+		name   string
+		obj    runtime.Object
+		nsname types.NamespacedName
+	}{
+		{
+			"Namespace",
+			&corev1.Namespace{},
+			types.NamespacedName{Name: namespaceName},
+		},
+		{
+			"ServiceAccount",
+			&corev1.ServiceAccount{},
+			types.NamespacedName{Name: serviceAccountName, Namespace: namespaceName},
+		},
+		{
+			"SecurityContextConstraints",
+			&securityv1.SecurityContextConstraints{},
+			types.NamespacedName{Name: sccName},
+		},
+		{
+			"DaemonSet",
+			&appsv1.DaemonSet{},
+			types.NamespacedName{Name: daemonSetName, Namespace: namespaceName},
+		},
+		{
+			"CSIDriver",
+			&storagev1beta1.CSIDriver{},
+			types.NamespacedName{Name: CSIDriverName},
+		},
+		{
+			"StorageClass",
+			&storagev1.StorageClass{},
+			types.NamespacedName{Name: StorageClassName},
+		},
+	} {
+		if err := client.Get(ctx, i.nsname, i.obj); err != nil {
+			t.Fatalf("Couldn't get %s: %v", i.name, err)
+		}
+		diff := cmp.Diff(findStatic(i.nsname).(*util.EnsurableImpl).Definition, i.obj, diffOpts...)
+		if diff != "" {
+			t.Fatal("Objects differ: -expected, +actual\n", diff)
+		}
+		if !util.DoICare(i.obj) {
+			t.Fatalf("Missing label for %s", i.name)
+		}
+		ret[i.name] = i.obj
 	}
-	validateNamespace(t, ns, true)
-	ret["Namespace"] = ns
-
-	sa := &corev1.ServiceAccount{}
-	if err := client.Get(ctx, types.NamespacedName{Name: serviceAccountName, Namespace: namespaceName}, sa); err != nil {
-		t.Fatalf("Couldn't get ServiceAccount: %v", err)
-	}
-	validateServiceAccount(t, sa, true)
-	ret["ServiceAccount"] = sa
-
-	scc := &securityv1.SecurityContextConstraints{}
-	if err := client.Get(ctx, types.NamespacedName{Name: sccName}, scc); err != nil {
-		t.Fatalf("Couldn't get SecurityContextConstraints: %v", err)
-	}
-	validateSecurityContextConstraints(t, scc, true)
-	ret["SecurityContextConstraints"] = scc
-
-	ds := &appsv1.DaemonSet{}
-	if err := client.Get(ctx, types.NamespacedName{Name: daemonSetName, Namespace: namespaceName}, ds); err != nil {
-		t.Fatalf("Couldn't get DaemonSet: %v", err)
-	}
-	validateDaemonSet(t, ds, true)
-	ret["DaemonSet"] = ds
-
-	cd := &storagev1beta1.CSIDriver{}
-	if err := client.Get(ctx, types.NamespacedName{Name: CSIDriverName}, cd); err != nil {
-		t.Fatalf("Couldn't get CSIDriver: %v", err)
-	}
-	validateCSIDriver(t, cd, true)
-	ret["CSIDriver"] = cd
-
-	sc := &storagev1.StorageClass{}
-	if err := client.Get(ctx, types.NamespacedName{Name: StorageClassName}, sc); err != nil {
-		t.Fatalf("Couldn't get StorageClass: %v", err)
-	}
-	validateStorageClass(t, sc, true)
-	ret["StorageClass"] = sc
 
 	return ret
-}
-
-func doDiff(t *testing.T, expected, actual runtime.Object, expectLabel bool) {
-	diff := cmp.Diff(expected, actual, diffOpts...)
-	if diff != "" {
-		t.Fatal("Objects differ: -expected, +actual\n", diff)
-	}
-	if doICare := util.DoICare(actual); expectLabel != doICare {
-		t.Fatalf("expectLabel was %v but DoICare returned %v", expectLabel, doICare)
-	}
-}
-func validateNamespace(t *testing.T, actual *corev1.Namespace, expectLabel bool) {
-	expected := &corev1.Namespace{}
-	test.LoadYAML(t, expected, "namespace.yaml")
-	doDiff(t, expected, actual, expectLabel)
-}
-
-func validateServiceAccount(t *testing.T, actual *corev1.ServiceAccount, expectLabel bool) {
-	expected := &corev1.ServiceAccount{}
-	test.LoadYAML(t, expected, "serviceaccount.yaml")
-	doDiff(t, expected, actual, expectLabel)
-}
-
-func validateStorageClass(t *testing.T, actual *storagev1.StorageClass, expectLabel bool) {
-	expected := &storagev1.StorageClass{}
-	test.LoadYAML(t, expected, "storageclass.yaml")
-	doDiff(t, expected, actual, expectLabel)
-}
-
-func validateCSIDriver(t *testing.T, actual *storagev1beta1.CSIDriver, expectLabel bool) {
-	expected := &storagev1beta1.CSIDriver{}
-	test.LoadYAML(t, expected, "csidriver.yaml")
-	doDiff(t, expected, actual, expectLabel)
-}
-
-func validateSecurityContextConstraints(t *testing.T, actual *securityv1.SecurityContextConstraints, expectLabel bool) {
-	expected := &securityv1.SecurityContextConstraints{}
-	test.LoadYAML(t, expected, "scc.yaml")
-	doDiff(t, expected, actual, expectLabel)
-}
-
-func validateDaemonSet(t *testing.T, actual *appsv1.DaemonSet, expectLabel bool) {
-	expected := &appsv1.DaemonSet{}
-	test.LoadYAML(t, expected, "daemonset.yaml")
-	doDiff(t, expected, actual, expectLabel)
 }

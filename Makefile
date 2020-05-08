@@ -1,8 +1,8 @@
 GOTEST_PACKAGES?=./cmd/... ./pkg/...
 
 generate:
-	# TODO(efried): ensure deps for this (e.g. mockgen)
 	go generate $(GOTEST_PACKAGES)
+	# Don't forget to commit generated files
 
 test:
 	go test $(GOTEST_PACKAGES)
