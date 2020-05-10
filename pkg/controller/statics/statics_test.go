@@ -57,11 +57,11 @@ func TestEnsureStatics(t *testing.T) {
 
 	// Now mess with the resources in various ways
 
-	// Unlabel the namespace
-	ns := statics["Namespace"].(*corev1.Namespace)
+	// Unlabel the ServiceAccount
+	ns := statics["ServiceAccount"].(*corev1.ServiceAccount)
 	ns.SetLabels(map[string]string{})
 	if err := mockClient.Update(ctx, ns); err != nil {
-		t.Fatalf("Failed to update Namespace: %v", err)
+		t.Fatalf("Failed to update ServiceAccount: %v", err)
 	}
 
 	// Twiddle some permissions in the SCC
@@ -144,11 +144,6 @@ func Test_static_GetType(t *testing.T) {
 
 	var nsn types.NamespacedName
 
-	// Namespace
-	nsn = types.NamespacedName{Name: namespaceName}
-	if _, ok := findStatic(nsn).GetType().(*corev1.Namespace); !ok {
-		t.Fatal("GetType() returned the wrong type for Namespace static resource.")
-	}
 	// ServiceAccount
 	nsn = types.NamespacedName{Name: serviceAccountName, Namespace: namespaceName}
 	if _, ok := findStatic(nsn).GetType().(*corev1.ServiceAccount); !ok {

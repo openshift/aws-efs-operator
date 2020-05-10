@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	expectedNumStatics = 6
+	expectedNumStatics = 5
 )
 
 // Common options we're passing into cmp.Diff.
@@ -62,11 +62,6 @@ func checkStatics(t *testing.T, client crclient.Client) map[string]runtime.Objec
 		obj    runtime.Object
 		nsname types.NamespacedName
 	}{
-		{
-			"Namespace",
-			&corev1.Namespace{},
-			types.NamespacedName{Name: namespaceName},
-		},
 		{
 			"ServiceAccount",
 			&corev1.ServiceAccount{},

@@ -5,7 +5,7 @@ apiVersion: apps/v1
 metadata:
   name: efs-csi-node
   # DELTA: Use a custom namespace rather than kube-system
-  namespace: openshift-efs-csi
+  # The namespace is populated dynamically by the operator.
 spec:
   selector:
     matchLabels:

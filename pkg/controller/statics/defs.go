@@ -2,7 +2,6 @@
 // sources:
 // defs/csidriver.yaml
 // defs/daemonset.yaml
-// defs/namespace.yaml
 // defs/scc.yaml
 // defs/serviceaccount.yaml
 // defs/storageclass.yaml
@@ -92,7 +91,7 @@ apiVersion: apps/v1
 metadata:
   name: efs-csi-node
   # DELTA: Use a custom namespace rather than kube-system
-  namespace: openshift-efs-csi
+  # The namespace is populated dynamically by the operator.
 spec:
   selector:
     matchLabels:
@@ -211,29 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3674, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
-var _defsNamespaceYaml = []byte(`# Privileged namespace for running the EFS CSI driver's DaemonSet
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: openshift-efs-csi
-`)
-
-func defsNamespaceYamlBytes() ([]byte, error) {
-	return _defsNamespaceYaml, nil
-}
-
-func defsNamespaceYaml() (*asset, error) {
-	bytes, err := defsNamespaceYamlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "defs/namespace.yaml", size: 133, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589133470, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -297,8 +274,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: efs-csi-sa
-  namespace: openshift-efs-csi
-`)
+  # NOTE: namespace is set dynamically after this is loaded.`)
 
 func defsServiceaccountYamlBytes() ([]byte, error) {
 	return _defsServiceaccountYaml, nil
@@ -310,7 +286,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 160, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589136981, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -394,7 +370,6 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"defs/csidriver.yaml":      defsCsidriverYaml,
 	"defs/daemonset.yaml":      defsDaemonsetYaml,
-	"defs/namespace.yaml":      defsNamespaceYaml,
 	"defs/scc.yaml":            defsSccYaml,
 	"defs/serviceaccount.yaml": defsServiceaccountYaml,
 	"defs/storageclass.yaml":   defsStorageclassYaml,
@@ -444,7 +419,6 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"defs": &bintree{nil, map[string]*bintree{
 		"csidriver.yaml":      &bintree{defsCsidriverYaml, map[string]*bintree{}},
 		"daemonset.yaml":      &bintree{defsDaemonsetYaml, map[string]*bintree{}},
-		"namespace.yaml":      &bintree{defsNamespaceYaml, map[string]*bintree{}},
 		"scc.yaml":            &bintree{defsSccYaml, map[string]*bintree{}},
 		"serviceaccount.yaml": &bintree{defsServiceaccountYaml, map[string]*bintree{}},
 		"storageclass.yaml":   &bintree{defsStorageclassYaml, map[string]*bintree{}},

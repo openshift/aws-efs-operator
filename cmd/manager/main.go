@@ -80,6 +80,12 @@ func main() {
 		log.Error(err, "Failed to get watch namespace")
 		os.Exit(1)
 	}
+	if namespace != "" {
+		log.Info(fmt.Sprintf(
+			"This operator watches all namespaces. Ignoring configured watch namespace '%s'.",
+			namespace))
+		namespace = ""
+	}
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
@@ -106,6 +112,11 @@ func main() {
 	// Note that this is not intended to be used for excluding namespaces, this is better done via a Predicate
 	// Also note that you may face performance issues when using this with a high number of namespaces.
 	// More Info: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
+	// TODO(efried): This is unreachable for now, because we always force `namespace` to "". But
+	// for efficiency, we may in the future wish to allow the operator to be configured to watch a
+	// specific list of namespaces (meaning the user only needs pods in those namespaces using
+	// shared volumes). In that case, we would have to add the discovered namespace to the list,
+	// because that's where the driver runs, and we always have to watch that.
 	if strings.Contains(namespace, ",") {
 		options.Namespace = ""
 		options.NewCache = cache.MultiNamespacedCacheBuilder(strings.Split(namespace, ","))
