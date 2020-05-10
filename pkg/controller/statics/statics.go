@@ -27,73 +27,75 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// These names get assigned by calls to mkEnsurable()
+var (
+	// These names get assigned by calls to makeEnsurable()
 
-// CSIDriverName is used by `PersistentVolume`s
-var CSIDriverName string
+	// CSIDriverName is used by `PersistentVolume`s
+	CSIDriverName string
 
-// StorageClassName is used by `PersistentVolume`s
-var StorageClassName string
+	// StorageClassName is used by `PersistentVolume`s
+	StorageClassName string
 
-var daemonSetName string
-var namespaceName string
-var sccName string
-var serviceAccountName string
+	daemonSetName      string
+	namespaceName      string
+	sccName            string
+	serviceAccountName string
 
-// staticResources lists the resources the operator will create, and watch via the statics-controller.
-// The order is significant: when bootstrapping, the operator will create the resources in this order.
-var staticResources = []util.Ensurable{
-	mkEnsurable(
-		&corev1.Namespace{},
-		"namespace.yaml",
-		&namespaceName,
-		alwaysEqual,
-	),
-	mkEnsurable(
-		&corev1.ServiceAccount{},
-		"serviceaccount.yaml",
-		&serviceAccountName,
-		alwaysEqual,
-	),
-	mkEnsurable(
-		&securityv1.SecurityContextConstraints{},
-		"scc.yaml",
-		&sccName,
-		// SCC has no Spec; the meat is at the top level
-		equalOtherThanMeta,
-	),
-	mkEnsurable(
-		&appsv1.DaemonSet{},
-		"daemonset.yaml",
-		&daemonSetName,
-		daemonSetEqual,
-	),
-	mkEnsurable(
-		&storagev1beta1.CSIDriver{},
-		"csidriver.yaml",
-		&CSIDriverName,
-		csiDriverEqual,
-	),
-	mkEnsurable(
-		&storagev1.StorageClass{},
-		"storageclass.yaml",
-		&StorageClassName,
-		// StorageClass has no Spec; the meat is at the top level
-		equalOtherThanMeta,
-	),
-}
+	// staticResources lists the resources the operator will create, and watch via the statics-controller.
+	// The order is significant: when bootstrapping, the operator will create the resources in this order.
+	staticResources = []util.Ensurable{
+		makeEnsurable(
+			&corev1.Namespace{},
+			"namespace.yaml",
+			&namespaceName,
+			alwaysEqual,
+		),
+		makeEnsurable(
+			&corev1.ServiceAccount{},
+			"serviceaccount.yaml",
+			&serviceAccountName,
+			alwaysEqual,
+		),
+		makeEnsurable(
+			&securityv1.SecurityContextConstraints{},
+			"scc.yaml",
+			&sccName,
+			// SCC has no Spec; the meat is at the top level
+			equalOtherThanMeta,
+		),
+		makeEnsurable(
+			&appsv1.DaemonSet{},
+			"daemonset.yaml",
+			&daemonSetName,
+			daemonSetEqual,
+		),
+		makeEnsurable(
+			&storagev1beta1.CSIDriver{},
+			"csidriver.yaml",
+			&CSIDriverName,
+			csiDriverEqual,
+		),
+		makeEnsurable(
+			&storagev1.StorageClass{},
+			"storageclass.yaml",
+			&StorageClassName,
+			// StorageClass has no Spec; the meat is at the top level
+			equalOtherThanMeta,
+		),
+	}
 
-// staticResourceMap is keyed by each Ensurable's resource's name. It's used for quick lookups in
-// the reconciler.
-// (It's a bit brittle that this is keyed by name; it would break if we needed two resources of the
-// same name in different namespaces. But we really shouldn't do that.)
-var staticResourceMap = make(map[string]util.Ensurable)
+	// staticResourceMap is keyed by each Ensurable's resource's name. It's used for quick lookups in
+	// the reconciler.
+	// (It's a bit brittle that this is keyed by name; it would break if we needed two resources of the
+	// same name in different namespaces. But we really shouldn't do that.)
+	staticResourceMap = make(map[string]util.Ensurable)
+)
 
-// mkEnsurable is a helper that bootstraps the Ensurable(Impl) instances in staticResources and
+// makeEnsurable is a helper that bootstraps the Ensurable(Impl) instances in staticResources and
 // staticResourceMap by loading their definitions from the bindata in defs/*.yaml. At the same
 // time, it populates the *Name strings, which are the keys into staticResourceMap. Some of those
 // names are also exported because they're used in the `PersistentVolume`s we create.
-func mkEnsurable(
+func makeEnsurable(
 	objType runtime.Object,
 	defFile string,
 	name *string,
