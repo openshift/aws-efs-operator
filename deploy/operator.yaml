@@ -22,9 +22,11 @@ spec:
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              # We need to watch:
+              # - The namespace we're started in, which is where the daemonset will run
+              # - All the namespaces in which instances of our CR are created, which we
+              #   can't predict.
+              value: ""
             - name: POD_NAME
               valueFrom:
                 fieldRef:
