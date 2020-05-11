@@ -68,86 +68,87 @@ func init() {
 	discoverNamespace()
 
 	// Build up our static Ensurables
+
+	saDef := &corev1.ServiceAccount{}
+	loadDefTemplate(saDef, "serviceaccount.yaml")
+	// ServiceAccount is namespaced
+	saDef.SetNamespace(namespaceName)
+	serviceAccountName = saDef.Name
+
+	sccDef := &securityv1.SecurityContextConstraints{}
+	loadDefTemplate(sccDef, "scc.yaml")
+	// Add the service account user
+	saUser := fmt.Sprintf("system:serviceaccount:%s:%s", saDef.Namespace, saDef.Name)
+	sccDef.Users = append(sccDef.Users, saUser)
+	sccName = sccDef.Name
+
+	dsDef := &appsv1.DaemonSet{}
+	loadDefTemplate(dsDef, "daemonset.yaml")
+	// DaemonSet is namespaced
+	dsDef.SetNamespace(namespaceName)
+	daemonSetName = dsDef.Name
+
+	csiDef := &storagev1beta1.CSIDriver{}
+	loadDefTemplate(csiDef, "csidriver.yaml")
+	CSIDriverName = csiDef.Name
+
+	scDef := &storagev1.StorageClass{}
+	loadDefTemplate(scDef, "storageclass.yaml")
+	StorageClassName = scDef.Name
+
 	staticResources = []util.Ensurable{
-		makeEnsurable(
-			&corev1.ServiceAccount{},
-			"serviceaccount.yaml",
-			namespaceName,
-			&serviceAccountName,
-			alwaysEqual,
-		),
-		makeEnsurable(
-			&securityv1.SecurityContextConstraints{},
-			"scc.yaml",
-			"", // SCC is cluster scoped
-			&sccName,
+		&util.EnsurableImpl{
+			ObjType: &corev1.ServiceAccount{},
+			NamespacedName: getNSName(saDef),
+			Definition: saDef,
+			EqualFunc: alwaysEqual,
+		},
+		&util.EnsurableImpl{
+			ObjType: &securityv1.SecurityContextConstraints{},
+			NamespacedName: getNSName(sccDef),
+			Definition: sccDef,
 			// SCC has no Spec; the meat is at the top level
-			equalOtherThanMeta,
-		),
-		makeEnsurable(
-			&appsv1.DaemonSet{},
-			"daemonset.yaml",
-			namespaceName,
-			&daemonSetName,
-			daemonSetEqual,
-		),
-		makeEnsurable(
-			&storagev1beta1.CSIDriver{},
-			"csidriver.yaml",
-			"", // CSIDriver is cluster scoped
-			&CSIDriverName,
-			csiDriverEqual,
-		),
-		makeEnsurable(
-			&storagev1.StorageClass{},
-			"storageclass.yaml",
-			"", // StorageClass is cluster scoped
-			&StorageClassName,
+			EqualFunc: equalOtherThanMeta,
+		},
+		&util.EnsurableImpl{
+			ObjType: &appsv1.DaemonSet{},
+			NamespacedName: getNSName(dsDef),
+			Definition: dsDef,
+			EqualFunc: daemonSetEqual,
+		},
+		&util.EnsurableImpl{
+			ObjType: &storagev1beta1.CSIDriver{},
+			NamespacedName: getNSName(csiDef),
+			Definition: csiDef,
+			EqualFunc: csiDriverEqual,
+		},
+		&util.EnsurableImpl{
+			ObjType: &storagev1.StorageClass{},
+			NamespacedName: getNSName(scDef),
+			Definition: scDef,
 			// StorageClass has no Spec; the meat is at the top level
-			equalOtherThanMeta,
-		),
+			EqualFunc: equalOtherThanMeta,
+		},
+	}
+
+	// Populate our lookup map
+	for _, s := range staticResources {
+		staticResourceMap[s.GetNamespacedName().Name] = s
 	}
 }
 
-// makeEnsurable is a helper that bootstraps an Ensurable(Impl) instance in staticResources and
-// staticResourceMap by loading its definition from the bindata in defs/*.yaml. At the same
-// time, it populates the *Name string, which keys into staticResourceMap.
-func makeEnsurable(
-	objType runtime.Object,
-	defFile string,
-	namespace string,
-	name *string,
-	equalFunc func(local, server runtime.Object) bool) util.Ensurable {
-
-	// Make a new copy for the definition
-	definition := objType.DeepCopyObject()
-	if err := yaml.Unmarshal(MustAsset(filepath.Join("defs", defFile)), definition); err != nil {
+func loadDefTemplate(receiver runtime.Object, defFile string) {
+	if err := yaml.Unmarshal(MustAsset(filepath.Join("defs", defFile)), receiver); err != nil {
 		panic("Couldn't load " + defFile + ": " + err.Error())
 	}
+}
 
-	// Our defs don't have a namespace yet
-	definition.(metav1.Object).SetNamespace(namespace)
-
-	// Discover the NamespacedName from that definition
+func getNSName(definition runtime.Object) types.NamespacedName {
 	nsname, err := crclient.ObjectKeyFromObject(definition)
 	if err != nil {
-		panic("Couldn't extract NamespacedName from definition for " + defFile + ": " + err.Error())
+		panic("Couldn't extract NamespacedName from definition: " + err.Error())
 	}
-
-	// Set our all-important global name variable
-	*name = nsname.Name
-
-	// Build up the object
-	ensurable := &util.EnsurableImpl{
-		ObjType:        objType,
-		NamespacedName: nsname,
-		Definition:     definition,
-		EqualFunc:      equalFunc,
-	}
-	// Stuff it in the lookup map
-	staticResourceMap[nsname.Name] = ensurable
-
-	return ensurable
+	return nsname
 }
 
 // discoverNamespace discovers the namespace we're running in and sets the global `namespaceName`

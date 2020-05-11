@@ -32,6 +32,7 @@ supplementalGroups:
   type: RunAsAny
 users:
 - system:admin
-- system:serviceaccount:openshift-efs-csi:efs-csi-sa
+# The operator must add:
+# - system:serviceaccount:${namespace}:${serviceaccount}
 volumes:
 - '*'
