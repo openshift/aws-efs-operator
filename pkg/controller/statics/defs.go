@@ -79,7 +79,7 @@ func defsCsidriverYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
+	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1589208999, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589133470, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589212770, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -249,7 +249,8 @@ supplementalGroups:
   type: RunAsAny
 users:
 - system:admin
-- system:serviceaccount:openshift-efs-csi:efs-csi-sa
+# The operator must add:
+# - system:serviceaccount:${namespace}:${serviceaccount}
 volumes:
 - '*'
 `)
@@ -264,7 +265,7 @@ func defsSccYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/scc.yaml", size: 765, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
+	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1589212781, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -286,7 +287,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589136981, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589212770, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -311,7 +312,7 @@ func defsStorageclassYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/storageclass.yaml", size: 158, mode: os.FileMode(436), modTime: time.Unix(1588889808, 0)}
+	info := bindataFileInfo{name: "defs/storageclass.yaml", size: 158, mode: os.FileMode(436), modTime: time.Unix(1589208999, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
