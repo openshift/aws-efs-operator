@@ -120,11 +120,11 @@ func TestEnsureStaticsError(t *testing.T) {
 	// We don't care about the calls, really, but we have to register them or gomock gets upset
 	client.EXPECT().
 		Get(gomock.Any(), gomock.Any(), gomock.Any()).
-		MinTimes(expectedNumStatics).MaxTimes(expectedNumStatics).
+		Times(expectedNumStatics).
 		Return(theError)
 	log.EXPECT().
 		Error(theError, "Failed to retrieve.", "resource", gomock.Any()).
-		MinTimes(expectedNumStatics).MaxTimes(expectedNumStatics)
+		Times(expectedNumStatics)
 
 	err := EnsureStatics(log, client)
 	if err == nil {

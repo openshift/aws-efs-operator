@@ -121,7 +121,7 @@ func TestReconcileEnsureFails(t *testing.T) {
 	theError := fixtures.AlreadyExists
 
 	// Don't really care about the args
-	client.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).MaxTimes(1).Return(theError)
+	client.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(theError)
 
 	// Any resource is fine, just making sure we actually try to Ensure it
 	staticResource := staticResources[3]
