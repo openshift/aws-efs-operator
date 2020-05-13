@@ -10,6 +10,6 @@ spec:
   storageClassName: efs-sc
   resources:
     requests:
-      storage: 5Gi
+      storage: 47.9Ti
   volumeMode: Filesystem
   volumeName: pv-project1-my-shared-volume
