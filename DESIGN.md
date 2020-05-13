@@ -25,8 +25,8 @@ Its Spec shall contain:
 
 | json            | go            | type   | required? | description |
 | -               | -             | -      | -         | -           |
-| `fileSystemID`  | FileSystemID  | string | y         | The EFS volume identifier (e.g. `fs-484648c8`) |
-| `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-097bd0daaba932e64`) |
+| `fileSystemID`  | FileSystemID  | string | y         | The EFS volume identifier (e.g. `fs-1234cdef`) |
+| `accessPointID` | AccessPointID | string | y         | The access point identifier (e.g. `fsap-0123456789abcdef`) |
 |                 |               |        |           |             |
 
 Its Status shall contain:
