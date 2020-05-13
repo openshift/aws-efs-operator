@@ -50,13 +50,13 @@ spec:
           description: SharedVolumeSpec defines the desired state of SharedVolume
           properties:
             accessPointID:
-              description: The ID of an EFS volume access point, e.g. `fsap-097bd0daaba932e64`.
+              description: The ID of an EFS volume access point, e.g. `fsap-0123456789abcdef`.
                 The EFS volume will be mounted to the specified access point. Required.
                 Immutable.
               pattern: ^fsap-[0-9a-f]+$
               type: string
             fileSystemID:
-              description: The ID of the EFS volume, e.g. `fs-484648c8`. Required.
+              description: The ID of the EFS volume, e.g. `fs-0123cdef`. Required.
                 Immutable.
               pattern: ^fs-[0-9a-f]+$
               type: string

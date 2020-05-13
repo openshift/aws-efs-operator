@@ -14,8 +14,8 @@ spec:
   mountOptions:
   - tls
   # File system access point ID
-  - accesspoint=fsap-097bd0daaba932e64
+  - accesspoint=fsap-0123456789abcdef
   csi:
     driver: efs.csi.aws.com
     # EFS volume ID
-    volumeHandle: fs-484648c8
+    volumeHandle: fs-0123cdef

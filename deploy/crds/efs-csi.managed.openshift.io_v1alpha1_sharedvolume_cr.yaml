@@ -4,8 +4,5 @@ metadata:
   name: example-sharedvolume
   namespace: project1
 spec:
-  accessPointID: fsap-097bd0daaba932e64
-  fileSystemID: fs-484648c8
-status:
-  persistentVolumeClaim: {}
-  status: Creating
+  accessPointID: fsap-0123456789abcdef
+  fileSystemID: fs-0123cdef
