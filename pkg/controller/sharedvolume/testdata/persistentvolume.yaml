@@ -5,7 +5,7 @@ metadata:
   name: pv-project1-my-shared-volume
 spec:
   capacity:
-    storage: 5Gi
+    storage: 47.9Ti
   volumeMode: Filesystem
   accessModes:
     - ReadWriteMany
