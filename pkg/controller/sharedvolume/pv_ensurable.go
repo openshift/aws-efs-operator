@@ -17,11 +17,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Cache of PV Ensurables by SharedVolume name
+// Cache of PV Ensurables by SharedVolume namespace and name
 var pvBySharedVolume = make(map[string]util.Ensurable)
 
 func pvEnsurable(sharedVolume *efscsiv1alpha1.SharedVolume) util.Ensurable {
-	key := sharedVolume.Name
+	key := svKey(sharedVolume)
 	if _, ok := pvBySharedVolume[key]; !ok {
 		pvBySharedVolume[key] = &util.EnsurableImpl{
 			ObjType:        &corev1.PersistentVolume{},
