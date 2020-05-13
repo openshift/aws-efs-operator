@@ -1,5 +1,7 @@
 package util
 
+//go:generate mockgen -destination ../fixtures/mock_ensurable.go -package fixtures -source=ensurable.go Ensurable
+
 /**
 Types and functions to manage resources that can be "ensured" -- that is, created if they don't exist,
 and updated to a canonical representation if they deviate from it.
