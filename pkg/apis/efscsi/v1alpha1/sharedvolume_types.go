@@ -13,10 +13,10 @@ type SharedVolumeSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	// The ID of the EFS volume, e.g. `fs-484648c8`. Required. Immutable.
+	// The ID of the EFS volume, e.g. `fs-0123cdef`. Required. Immutable.
 	// +kubebuilder:validation:Pattern=^fs-[0-9a-f]+$
 	FileSystemID string `json:"fileSystemID"`
-	// The ID of an EFS volume access point, e.g. `fsap-097bd0daaba932e64`.
+	// The ID of an EFS volume access point, e.g. `fsap-0123456789abcdef`.
 	// The EFS volume will be mounted to the specified access point.
 	// Required. Immutable.
 	// +kubebuilder:validation:Pattern=^fsap-[0-9a-f]+$

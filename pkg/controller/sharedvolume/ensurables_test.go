@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	fakeFSID      = "fs-484648c8"
-	fakeAPID      = "fsap-097bd0daaba932e64"
+	fakeFSID      = "fs-0123cdef"
+	fakeAPID      = "fsap-0123456789abcdef"
 	fakeNamespace = "project1"
 	fakeSVName    = "my-shared-volume"
 )
