@@ -58,6 +58,7 @@ func pvcDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.Persistent
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					// NOTE: This is ignored by the CSI driver, but a value is required to create a PVC.
+					// To make matters worse, the number is validated against quota.
 					corev1.ResourceStorage: efsSize,
 				},
 			},
