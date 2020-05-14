@@ -63,6 +63,7 @@ func pvDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.PersistentV
 		Spec: corev1.PersistentVolumeSpec{
 			Capacity: corev1.ResourceList{
 				// NOTE: This is ignored by the CSI driver, but a value is required to create a PV.
+				// To make matters worse, the number is validated against quota.
 				corev1.ResourceStorage: efsSize,
 			},
 			VolumeMode:                    &filesystem,
