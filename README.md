@@ -1,4 +1,4 @@
-# EFS CSI Operator for OpenShift Dedicated
+# AWS EFS Operator for OpenShift Dedicated
 
 This is an operator to manage read-write-many access to AWS EFS volumes in an OpenShift Dedicated cluster.
 
@@ -47,7 +47,7 @@ This operator's custom resource, `SharedVolume` (which can be abbreviated `sv`) 
 Here is an example `SharedVolume` definition:
 
 ```yaml
-apiVersion: efs-csi.managed.openshift.io/v1alpha1
+apiVersion: aws-efs.managed.openshift.io/v1alpha1
 kind: SharedVolume
 metadata:
   name: sv1
@@ -60,7 +60,7 @@ If the above definition is in the file `/tmp/sv1.yaml`, create the resource with
 
 ```shell
 $ oc create -f /tmp/sv1.yaml
-sharedvolume.efs-csi.managed.openshift.io/sv1 created
+sharedvolume.aws-efs.managed.openshift.io/sv1 created
 ```
 
 Note that a `SharedVolume` is namespace scoped. Create it in the same namespace in which you wish to run the
@@ -145,7 +145,7 @@ Once all pods using a `SharedVolume` have been destroyed, delete the `SharedVolu
 
 ```shell
 $ oc delete sv sv1
-sharedvolume.efs-csi.managed.openshift.io "sv1" deleted
+sharedvolume.aws-efs.managed.openshift.io "sv1" deleted
 ```
 
 The associated `PersistentVolumeClaim` is deleted automatically.

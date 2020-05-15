@@ -6,7 +6,7 @@ Short-term things that need fixing/addressing
 ```shell
 [efried@efried ops-sop]$ oc explain sv
 KIND:     SharedVolume
-VERSION:  efs-csi.managed.openshift.io/v1alpha1
+VERSION:  aws-efs.managed.openshift.io/v1alpha1
 
 DESCRIPTION:
      <empty>
