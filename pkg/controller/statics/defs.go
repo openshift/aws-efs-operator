@@ -57,7 +57,7 @@ func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
 
-var _defsCsidriverYaml = []byte(`# Source: https://github.com/kubernetes-sigs/aws-aws-efs-driver/blob/51d19a433dcfc47fbb7b7a0e1c8ff6ab98ce87e9/deploy/kubernetes/base/csidriver.yaml
+var _defsCsidriverYaml = []byte(`# Source: https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/51d19a433dcfc47fbb7b7a0e1c8ff6ab98ce87e9/deploy/kubernetes/base/csidriver.yaml
 kind: CSIDriver
 apiVersion: storage.k8s.io/v1beta1
 metadata:
@@ -79,30 +79,30 @@ func defsCsidriverYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1589570562, 0)}
+	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _defsDaemonsetYaml = []byte(`# Source: https://raw.githubusercontent.com/kubernetes-sigs/aws-aws-efs-driver/51d19a433dcfc47fbb7b7a0e1c8ff6ab98ce87e9/deploy/kubernetes/base/node.yaml
+var _defsDaemonsetYaml = []byte(`# Source: https://raw.githubusercontent.com/kubernetes-sigs/aws-efs-csi-driver/51d19a433dcfc47fbb7b7a0e1c8ff6ab98ce87e9/deploy/kubernetes/base/node.yaml
 # Changes tagged with DELTA: comments
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: aws-efs-node
+  name: efs-csi-node
   # DELTA: Use a custom namespace rather than kube-system
   # The namespace is populated dynamically by the operator.
 spec:
   selector:
     matchLabels:
-      app: aws-efs-node
+      app: efs-csi-node
   template:
     metadata:
       labels:
-        app: aws-efs-node
+        app: efs-csi-node
     spec:
       # DELTA: Added
-      serviceAccountName: aws-efs-sa
+      serviceAccountName: efs-csi-sa
       # DELTA: Removed
       # priorityClassName: system-node-critical
       nodeSelector:
@@ -118,8 +118,8 @@ spec:
             privileged: true
           # DELTA: fq image
           # TODO(efried): Pin to a release
-          #  https://github.com/kubernetes-sigs/aws-aws-efs-driver/issues/152
-          image: registry.hub.docker.com/amazon/aws-aws-efs-driver:latest
+          #  https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/152
+          image: registry.hub.docker.com/amazon/aws-efs-csi-driver:latest
           # DELTA: Always pull
           imagePullPolicy: Always
           args:
@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589570562, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -237,7 +237,7 @@ kind: SecurityContextConstraints
 metadata:
   annotations:
     kubernetes.io/description: 'Highly privileged SCC for the EFS CSI driver DaemonSet.'
-  name: aws-efs-scc
+  name: efs-csi-scc
 readOnlyRootFilesystem: false
 runAsUser:
   type: RunAsAny
@@ -265,7 +265,7 @@ func defsSccYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1589570562, 0)}
+	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -274,7 +274,7 @@ var _defsServiceaccountYaml = []byte(`# Privileged service account for the EFS C
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: aws-efs-sa
+  name: efs-csi-sa
   # NOTE: namespace is set dynamically after this is loaded.`)
 
 func defsServiceaccountYamlBytes() ([]byte, error) {
@@ -287,7 +287,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589570562, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
