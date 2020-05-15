@@ -13,10 +13,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
-	"2uasimojo/efs-csi-operator/pkg/apis"
-	"2uasimojo/efs-csi-operator/pkg/controller"
-	"2uasimojo/efs-csi-operator/pkg/controller/statics"
-	"2uasimojo/efs-csi-operator/version"
+	"openshift/aws-efs-operator/pkg/apis"
+	"openshift/aws-efs-operator/pkg/controller"
+	"openshift/aws-efs-operator/pkg/controller/statics"
+	"openshift/aws-efs-operator/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -96,7 +96,7 @@ func main() {
 
 	ctx := context.TODO()
 	// Become the leader before proceeding
-	err = leader.Become(ctx, "efs-csi-operator-lock")
+	err = leader.Become(ctx, "aws-efs-operator-lock")
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)

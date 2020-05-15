@@ -7,7 +7,7 @@ package statics
  */
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/util"
+	"openshift/aws-efs-operator/pkg/util"
 	"fmt"
 	"path/filepath"
 	"reflect"

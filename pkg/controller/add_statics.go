@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/controller/statics"
+	"openshift/aws-efs-operator/pkg/controller/statics"
 )
 
 func init() {

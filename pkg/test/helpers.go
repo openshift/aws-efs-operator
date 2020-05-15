@@ -1,7 +1,7 @@
 package test
 
 import (
-	util "2uasimojo/efs-csi-operator/pkg/util"
+	util "openshift/aws-efs-operator/pkg/util"
 
 	"io/ioutil"
 	"path/filepath"
