@@ -8,9 +8,11 @@
     * SharedVolume `oc get` should display the PVC name and `Ready` Phase.
     * Create pod against the PVC
     * Validate write access to the mount
+    * Bounce pods, make sure access remains
     * Delete pod
     * Delete SharedVolume
     * Validate PV and PVC go away
+    * Recreate and verify the data remains intact. ✔
 
 * One SharedVolume, multiple pods
     * All pods must be in the same namespace (as the PVC, which is in the same namespace as the SharedVolume)
@@ -18,18 +20,18 @@
     * Verify shared write access (write from one pod is readable by another, etc.)
 
 * Multiple SharedVolumes
-    * Same FS/AP in different namespaces
-        * Validate shared write access from pods in each namespace
-    * Multiple APs, same FS (should appear as separate data stores)
-        * Separate pods
+    * Same FS/AP in different namespaces ✔
+        * Validate shared write access from pods in each namespace ✔
+    * Multiple APs, same FS (should appear as separate data stores) ✔
+        * Separate pods ✔
         * <font color=red>Single pod with multiple volume defs</font>
-    * Separate APs on separate FSes (should appear as separate data stores)
-        * Separate pods
-        * Single pod with multiple volume defs
+    * Separate APs on separate FSes (should appear as separate data stores) ✔
+        * Separate pods ✔
+        * <font color=red>Single pod with multiple volume defs</font>
 
 ## Weird cases
 
-* Identical SharedVolumes in the same namespace. (This should work, right? Though it's unnecessary.)
+* Identical SharedVolumes in the same namespace. (This should work, right? Though it's unnecessary.) ✔
 
 ## Operator resiliency
 
