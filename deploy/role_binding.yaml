@@ -1,11 +1,11 @@
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: efs-csi-operator
+  name: aws-efs-operator
 subjects:
 - kind: ServiceAccount
-  name: efs-csi-operator
+  name: aws-efs-operator
 roleRef:
   kind: Role
-  name: efs-csi-operator
+  name: aws-efs-operator
   apiGroup: rbac.authorization.k8s.io

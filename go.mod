@@ -1,4 +1,4 @@
-module 2uasimojo/efs-csi-operator
+module openshift/aws-efs-operator
 
 go 1.13
 

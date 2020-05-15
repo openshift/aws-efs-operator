@@ -7,7 +7,7 @@ This controller knows how to bootstrap these objects and watch them for changes
 */
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/util"
+	"openshift/aws-efs-operator/pkg/util"
 
 	"k8s.io/apimachinery/pkg/runtime"
 

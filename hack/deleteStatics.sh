@@ -1,8 +1,8 @@
 #!/bin/bash
 
 oc delete \
-  scc/efs-csi-scc \
+  scc/aws-efs-scc \
   csidriver/efs.csi.aws.com \
   storageclass/efs-sc \
-  serviceaccount/efs-csi-sa \
-  daemonset/efs-csi-node
+  serviceaccount/aws-efs-sa \
+  daemonset/aws-efs-node
