@@ -3,9 +3,9 @@ package sharedvolume
 // Ensurable impl for PersistentVolumeClaim
 
 import (
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
-	"2uasimojo/efs-csi-operator/pkg/controller/statics"
-	util "2uasimojo/efs-csi-operator/pkg/util"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
+	"openshift/aws-efs-operator/pkg/controller/statics"
+	util "openshift/aws-efs-operator/pkg/util"
 
 	"fmt"
 	"reflect"
@@ -19,7 +19,7 @@ import (
 // Cache of PVC Ensurables by SharedVolume namespace and name
 var pvcBySharedVolume = make(map[string]util.Ensurable)
 
-func pvcEnsurable(sharedVolume *efscsiv1alpha1.SharedVolume) util.Ensurable {
+func pvcEnsurable(sharedVolume *awsefsv1alpha1.SharedVolume) util.Ensurable {
 	key := svKey(sharedVolume)
 	if _, ok := pvcBySharedVolume[key]; !ok {
 		pvcBySharedVolume[key] = &util.EnsurableImpl{
@@ -36,7 +36,7 @@ func pvcEnsurable(sharedVolume *efscsiv1alpha1.SharedVolume) util.Ensurable {
 	return pvcBySharedVolume[key]
 }
 
-func pvcNamespacedName(sharedVolume *efscsiv1alpha1.SharedVolume) types.NamespacedName {
+func pvcNamespacedName(sharedVolume *awsefsv1alpha1.SharedVolume) types.NamespacedName {
 	return types.NamespacedName{
 		// Name the PVC after the SharedVolume so it's easy to spot visually.
 		Name:      fmt.Sprintf("pvc-%s", sharedVolume.Name),
@@ -44,7 +44,7 @@ func pvcNamespacedName(sharedVolume *efscsiv1alpha1.SharedVolume) types.Namespac
 	}
 }
 
-func pvcDefinition(sharedVolume *efscsiv1alpha1.SharedVolume) *corev1.PersistentVolumeClaim {
+func pvcDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.PersistentVolumeClaim {
 	nsname := pvcNamespacedName(sharedVolume)
 	scname := statics.StorageClassName
 	filesystem := corev1.PersistentVolumeFilesystem

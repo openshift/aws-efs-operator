@@ -3,8 +3,8 @@ package statics
 import (
 	"testing"
 
-	"2uasimojo/efs-csi-operator/pkg/test"
-	"2uasimojo/efs-csi-operator/pkg/util"
+	"openshift/aws-efs-operator/pkg/test"
+	"openshift/aws-efs-operator/pkg/util"
 
 	"golang.org/x/net/context"
 

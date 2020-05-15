@@ -1,10 +1,10 @@
 package statics
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/fixtures"
-	"2uasimojo/efs-csi-operator/pkg/test"
-	"2uasimojo/efs-csi-operator/pkg/util"
 	"context"
+	"openshift/aws-efs-operator/pkg/fixtures"
+	"openshift/aws-efs-operator/pkg/test"
+	"openshift/aws-efs-operator/pkg/util"
 	"reflect"
 	"testing"
 

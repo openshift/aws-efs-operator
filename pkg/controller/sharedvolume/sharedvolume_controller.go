@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
-	"2uasimojo/efs-csi-operator/pkg/util"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
+	"openshift/aws-efs-operator/pkg/util"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +29,7 @@ import (
 const (
 	// TODO: Is there a lib const for this somewhere?
 	pvcKind     = "PersistentVolumeClaim"
-	svFinalizer = "finalizer.efscsi.managed.openshift.io"
+	svFinalizer = "finalizer.awsefs.managed.openshift.io"
 )
 
 var log = logf.Log.WithName("controller_sharedvolume")
@@ -55,7 +55,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource SharedVolume.
 	// (No need for the ICarePredicate here; we want to watch all SharedVolume instances.)
-	err = c.Watch(&source.Kind{Type: &efscsiv1alpha1.SharedVolume{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &awsefsv1alpha1.SharedVolume{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 	reqLogger.Info("Reconciling SharedVolume")
 
 	// Fetch the SharedVolume instance
-	sharedVolume := &efscsiv1alpha1.SharedVolume{}
+	sharedVolume := &awsefsv1alpha1.SharedVolume{}
 	if err := r.client.Get(context.TODO(), request.NamespacedName, sharedVolume); err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -121,7 +121,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 
 	// Deleting?
 	if sharedVolume.GetDeletionTimestamp() != nil {
-		r.markStatus(reqLogger, sharedVolume, efscsiv1alpha1.SharedVolumeDeleting, "")
+		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeDeleting, "")
 		return reconcile.Result{}, r.handleDelete(reqLogger, sharedVolume)
 	}
 
@@ -155,7 +155,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 	// If we never set the status, it means this SharedVolume is new, and we'll be creating the
 	// associated resources.
 	if sharedVolume.Status.Phase == "" {
-		err := r.markStatus(reqLogger, sharedVolume, efscsiv1alpha1.SharedVolumePending, "")
+		err := r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumePending, "")
 		// Whether this worked or not (err could be nil), requeue and let the next Reconcile do the rest.
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -176,7 +176,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 		// an error path whose behavior we don't want to disrupt.
 		// Note that we don't clear Status.ClaimRef: if it's set, it might help track
 		// down the cause of the error.
-		r.markStatus(reqLogger, sharedVolume, efscsiv1alpha1.SharedVolumeFailed, err.Error())
+		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
 		return reconcile.Result{}, err
 	}
 
@@ -187,7 +187,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 		// an error path whose behavior we don't want to disrupt.
 		// Note that we don't clear Status.ClaimRef: if it's set, it might help track
 		// down the cause of the error.
-		r.markStatus(reqLogger, sharedVolume, efscsiv1alpha1.SharedVolumeFailed, err.Error())
+		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
 		return reconcile.Result{}, err
 	}
 
@@ -197,7 +197,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 
 // ensureFinalizer makes sure the `sharedVolume` has our finalizer registered.
 // The `bool` return indicates whether an update was pushed to the server.
-func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume) (bool, error) {
+func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) (bool, error) {
 	if sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
 		return false, nil
 	}
@@ -210,7 +210,7 @@ func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume
 	return true, nil
 }
 
-func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume) error {
+func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) error {
 	if !sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
 		// Nothing to do
 		return nil
@@ -246,8 +246,8 @@ func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *e
 // markReady instead, because that knows how to handle the PVC bit. Also note that clearing the
 // message is an important part of marking status, so pass in "" if that's what you mean to do.
 func (r *ReconcileSharedVolume) markStatus(
-	logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume,
-	phase efscsiv1alpha1.SharedVolumePhase, message string) error {
+	logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume,
+	phase awsefsv1alpha1.SharedVolumePhase, message string) error {
 
 	updateRequired := false
 	if sharedVolume.Status.Phase != phase {
@@ -269,15 +269,15 @@ func (r *ReconcileSharedVolume) markStatus(
 // its Phase as Ready, returning an error if the update fails. This only attempts the
 // update if necessary, so as not to trigger an unnecessary Reconcile.
 func (r *ReconcileSharedVolume) markReady(
-	logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume, pvcnsname types.NamespacedName) error {
+	logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume, pvcnsname types.NamespacedName) error {
 
 	// Only update the SharedVolume if necessary. Otherwise this could trigger another reconcile
 	// and get us in a tight loop.
 	// TODO: Better way to construct/populate this TypedLocalObjectReference? Looking for something
 	// like ObjectRefFromObject()
 	updateNeeded := false
-	if sharedVolume.Status.Phase != efscsiv1alpha1.SharedVolumeReady {
-		sharedVolume.Status.Phase = efscsiv1alpha1.SharedVolumeReady
+	if sharedVolume.Status.Phase != awsefsv1alpha1.SharedVolumeReady {
+		sharedVolume.Status.Phase = awsefsv1alpha1.SharedVolumeReady
 		updateNeeded = true
 	}
 	if sharedVolume.Status.ClaimRef.Name != pvcnsname.Name {
@@ -290,7 +290,7 @@ func (r *ReconcileSharedVolume) markReady(
 	return nil
 }
 
-func (r *ReconcileSharedVolume) updateStatus(logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume) error {
+func (r *ReconcileSharedVolume) updateStatus(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) error {
 	logger.Info("Updating SharedVolume status", "status", sharedVolume.Status)
 	// TODO: I shouldn't have to set this, since PVC is in core.
 	apiGroup := ""
@@ -323,7 +323,7 @@ func (r *ReconcileSharedVolume) updateStatus(logger logr.Logger, sharedVolume *e
 // that case we should either delete the PV/PVC pair and start over, or mark the SharedVolume as
 // Failed and refuse to continue reconciling it, requiring it to be deleted and recreated.
 func (r *ReconcileSharedVolume) uneditSharedVolume(
-	logger logr.Logger, sharedVolume *efscsiv1alpha1.SharedVolume) (updated bool, err error) {
+	logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) (updated bool, err error) {
 
 	updated = false
 	err = nil

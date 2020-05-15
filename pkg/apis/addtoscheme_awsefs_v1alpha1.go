@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
+	"openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 )
 
 func init() {

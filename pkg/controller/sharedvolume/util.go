@@ -1,8 +1,8 @@
 package sharedvolume
 
 import (
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
 	"fmt"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -12,6 +12,6 @@ import (
 // Unfortunately, this is likely to be misleading to a human looking at the PV/PVC.
 var efsSize = resource.MustParse("1Gi")
 
-func svKey(sv *efscsiv1alpha1.SharedVolume) string {
+func svKey(sv *awsefsv1alpha1.SharedVolume) string {
 	return fmt.Sprintf("%s %s", sv.Namespace, sv.Name)
 }

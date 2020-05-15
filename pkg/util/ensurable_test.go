@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	fx "2uasimojo/efs-csi-operator/pkg/fixtures"
+	fx "openshift/aws-efs-operator/pkg/fixtures"
 
 	"github.com/golang/mock/gomock"
 
