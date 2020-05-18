@@ -102,7 +102,7 @@ spec:
         app: efs-csi-node
     spec:
       # DELTA: Added
-      serviceAccountName: efs-csi-sa
+      serviceAccountName: aws-efs-operator
       # DELTA: Removed
       # priorityClassName: system-node-critical
       nodeSelector:
@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3709, mode: os.FileMode(436), modTime: time.Unix(1589834960, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -274,8 +274,9 @@ var _defsServiceaccountYaml = []byte(`# Privileged service account for the EFS C
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: efs-csi-sa
-  # NOTE: namespace is set dynamically after this is loaded.`)
+  name: aws-efs-operator
+  # NOTE: namespace is set dynamically after this is loaded.
+`)
 
 func defsServiceaccountYamlBytes() ([]byte, error) {
 	return _defsServiceaccountYaml, nil
@@ -287,7 +288,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 189, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 196, mode: os.FileMode(436), modTime: time.Unix(1589834964, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

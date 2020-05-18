@@ -16,7 +16,7 @@ spec:
         app: efs-csi-node
     spec:
       # DELTA: Added
-      serviceAccountName: efs-csi-sa
+      serviceAccountName: aws-efs-operator
       # DELTA: Removed
       # priorityClassName: system-node-critical
       nodeSelector:

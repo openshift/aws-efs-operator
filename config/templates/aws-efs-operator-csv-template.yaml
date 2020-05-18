@@ -1,0 +1,45 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: aws-efs-operator-0.0.1
+  namespace: placeholder
+  annotations:
+    categories: A list of comma separated categories that your operator falls under.
+    certified: "false"
+    description: Management of AWS EFS read-write-many mounts.
+    containerImage: quay.io/app-sre/aws-efs-operator:latest
+    createdAt: "2020-04-18T21:43:33Z"
+    support: James Harrington
+spec:
+  displayName: aws-efs-operator
+  description: Management of AWS EFS read-write-many mounts.
+  keywords:
+  - kubernetes
+  - openshift
+  - multi-cluster
+  - cluster
+  version: 0.0.1
+  provider:
+    name: Red Hat, Inc
+  maturity: alpha
+  installModes:
+  - type: OwnNamespace
+    supported: true
+  - type: SingleNamespace
+    supported: false
+  - type: MultiNamespace
+    supported: false
+  - type: AllNamespaces
+    supported: true
+  install:
+    strategy: deployment
+    spec:
+      clusterPermissions:
+      - serviceAccountName: aws-efs-operator
+        # Rules will be added here by the generate-operator-bundle.py script.
+      deployments:
+      - name: aws-efs-operator
+        # Deployment spec will be added here by the generate-operator-bundle.py script.
+  customresourcedefinitions:
+    owned:
+    # CRD's will be added here by the generate-operator-bundle.py
