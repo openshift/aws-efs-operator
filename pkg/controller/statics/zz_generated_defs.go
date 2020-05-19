@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3709, mode: os.FileMode(436), modTime: time.Unix(1589834960, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3709, mode: os.FileMode(436), modTime: time.Unix(1589926432, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -288,7 +288,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 196, mode: os.FileMode(436), modTime: time.Unix(1589834964, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 196, mode: os.FileMode(436), modTime: time.Unix(1589926432, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

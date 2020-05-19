@@ -158,7 +158,7 @@ func TestCache(t *testing.T) {
 func TestToSharedVolumeUnlabeled(t *testing.T) {
 	o := &corev1.Pod{}
 	mo := handler.MapObject{
-		Meta: o,
+		Meta:   o,
 		Object: o,
 	}
 	rqList := toSharedVolume(mo)

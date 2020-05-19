@@ -4,7 +4,7 @@ package fixtures
 // when the code path expects an error condition.
 
 import (
-		metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // clientError will answer APIStatus questions like IsNotFound according to its `status`.
@@ -26,5 +26,6 @@ func (ce clientError) Error() string {
 
 // NotFound stub API response
 var NotFound error = clientError{reason: metav1.StatusReasonNotFound}
+
 // AlreadyExists stub API response
 var AlreadyExists error = clientError{reason: metav1.StatusReasonAlreadyExists}

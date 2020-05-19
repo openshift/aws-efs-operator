@@ -13,7 +13,7 @@ import (
 
 const (
 	svOwnerNamespaceKey = "openshift.io/aws-efs-operator-shared-volume-owner-namespace"
-	svOwnerNameKey = "openshift.io/aws-efs-operator-shared-volume-owner-name"
+	svOwnerNameKey      = "openshift.io/aws-efs-operator-shared-volume-owner-name"
 )
 
 func toSharedVolume(mo handler.MapObject) []reconcile.Request {
@@ -29,8 +29,8 @@ func toSharedVolume(mo handler.MapObject) []reconcile.Request {
 	return []reconcile.Request{
 		{
 			NamespacedName: types.NamespacedName{
-				Namespace: svNamespace, 
-				Name: svName,
+				Namespace: svNamespace,
+				Name:      svName,
 			},
 		},
 	}

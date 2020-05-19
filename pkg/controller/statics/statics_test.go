@@ -1,9 +1,9 @@
 package statics
 
 import (
+	"fmt"
 	"openshift/aws-efs-operator/pkg/fixtures"
 	"openshift/aws-efs-operator/pkg/util"
-	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"

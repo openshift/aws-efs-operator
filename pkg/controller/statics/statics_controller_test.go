@@ -1,10 +1,10 @@
 package statics
 
 import (
+	"context"
 	"openshift/aws-efs-operator/pkg/fixtures"
 	"openshift/aws-efs-operator/pkg/test"
 	"openshift/aws-efs-operator/pkg/util"
-	"context"
 	"reflect"
 	"testing"
 

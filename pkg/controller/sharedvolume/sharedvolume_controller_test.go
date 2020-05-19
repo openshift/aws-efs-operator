@@ -1,13 +1,13 @@
 package sharedvolume
 
 import (
+	"encoding/json"
+	"fmt"
 	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 	"openshift/aws-efs-operator/pkg/controller/statics"
 	"openshift/aws-efs-operator/pkg/fixtures"
 	"openshift/aws-efs-operator/pkg/test"
 	"openshift/aws-efs-operator/pkg/util"
-	"encoding/json"
-	"fmt"
 	"runtime/debug"
 
 	"context"
@@ -714,8 +714,8 @@ func TestDeleteFail(t *testing.T) {
 
 	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sv",
-			Namespace: "proj1",
+			Name:       "sv",
+			Namespace:  "proj1",
 			Finalizers: []string{svFinalizer},
 		},
 	}
@@ -766,8 +766,8 @@ func TestUpdateStatusFail(t *testing.T) {
 
 	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sv",
-			Namespace: "proj1",
+			Name:       "sv",
+			Namespace:  "proj1",
 			Finalizers: []string{svFinalizer},
 		},
 		Status: awsefsv1alpha1.SharedVolumeStatus{

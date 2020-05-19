@@ -1,13 +1,27 @@
-GOTEST_PACKAGES?=./cmd/... ./pkg/...
+SHELL := /usr/bin/env bash
 
-generate:
-	go generate $(GOTEST_PACKAGES)
-	# Don't forget to commit generated files
+OPERATOR_DOCKERFILE = ./build/Dockerfile
 
-test:
-	go test $(GOTEST_PACKAGES)
+# TODO(efried): Clean up these temp files
+COVER_PROFILE=coverage.out
 
-cover:
-	# TODO(efried): Clean up these temp files
-	go test ${GOTEST_PACKAGES} -coverprofile /tmp/cp.out
-	go tool cover -html /tmp/cp.out
+# TODO(efried): Figure out how to force all go targets to
+#    gvm use go1.13.6
+
+# Include shared Makefiles
+include project.mk
+include standard.mk
+
+default: gobuild
+
+.PHONY: coverhtml
+coverhtml: coverage
+	go tool cover -html $(COVER_PROFILE)
+
+# Build the docker image
+.PHONY: docker-build
+docker-build: build
+
+# Push the docker image
+.PHONY: docker-push
+docker-push: push

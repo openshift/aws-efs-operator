@@ -1,8 +1,8 @@
 package sharedvolume
 
 import (
-	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 	"fmt"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 )
