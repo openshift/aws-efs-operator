@@ -12,8 +12,6 @@ DESCRIPTION:
      <empty>
 ```
 
-* Get a definitive answer on multiple mounts in the same pod
-
 * Set up permissions so the customer can create `SharedVolume` CRs.
     * On that note, is there an RBACism that will forbid them from editing a `SharedVolume` once it's created?
     That would make some things easier (like allowing us to remove `uneditSharedVolume`).

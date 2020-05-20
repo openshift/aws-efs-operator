@@ -33,8 +33,9 @@ configured appropriately with respect to VPC, availability zones, etc.
 Create a separate [access point](https://docs.aws.amazon.com/efs/latest/ug/create-access-point.html) for each
 distinct data store you wish to access from your cluster. Be sure to configure ownership and permissions that
 will allow read and/or write access by your pod's `uid`/`gid` as desired.
-(Note: there is no need to use separate EFS file systems; distinct access points backed by the same EFS file system
-will still appear as distinct data stores.)
+
+**Note**: Until [this driver issue](https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/167) is resolved,
+access points must be backed by separate EFS file systems if they are to be used from the same pod.
 
 ### Working with `SharedVolume` resources
 
@@ -185,6 +186,11 @@ can leave it in an unusable state, even if the operator is able to resurrect the
 
 The only supported way to delete a `PersistentVolumeClaim` (or `PersistentVolume`) associated with a `SharedVolume`
 is to delete the `SharedVolume` and let the operator do the rest.
+
+### Separate access points, separate file systems
+
+Until [this driver issue](https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/167) is resolved,
+access points must be backed by separate EFS file systems if they are to be used from the same pod.
 
 ## Under the hood
 
