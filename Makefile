@@ -1,7 +1,5 @@
 SHELL := /usr/bin/env bash
 
-OPERATOR_DOCKERFILE = ./build/Dockerfile
-
 # TODO(efried): Clean up these temp files
 COVER_PROFILE=coverage.out
 

@@ -1,12 +1,23 @@
 FROM registry.svc.ci.openshift.org/openshift/release:golang-1.13 AS builder
-COPY . /go/src/github.com/openshift/aws-efs-operator
-WORKDIR /go/src/github.com/openshift/aws-efs-operator
+
+RUN mkdir -p /workdir
+WORKDIR /workdir
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
 RUN make gobuild
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
-ENV OPERATOR_BIN=aws-efs-operator
+ENV USER_UID=1001 \
+    USER_NAME=aws-efs-operator
 
-WORKDIR /root/
-COPY --from=builder /go/src/github.com/openshift/aws-efs-operator/build/_output/bin/${OPERATOR_BIN} /usr/local/bin/${OPERATOR_BIN}
+COPY --from=builder /workdir/build/_output/bin/* /usr/local/bin/
+
+COPY build/bin /usr/local/bin
+RUN  /usr/local/bin/user_setup
+
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
+
+USER ${USER_UID}
 LABEL io.openshift.managed.name="aws-efs-operator" \
       io.openshift.managed.description="This operator enables creation of AWS EFS-backed read-write-many persistent volumes."
