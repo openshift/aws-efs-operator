@@ -16,5 +16,5 @@ package config
 
 const (
 	OperatorName      string = "aws-efs-operator"
-	OperatorNamespace string = "aws-efs-operator"
+	OperatorNamespace string = "openshift-aws-efs"
 )
