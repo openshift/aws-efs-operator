@@ -309,6 +309,15 @@ func deleteFileSystem(efssvc *efs.EFS, fsid string) {
 	}
 }
 
+func deleteEverything() {
+	sess := getSession()
+	efssvc := getEFS(sess)
+	currentState := getFileSystems(efssvc)
+	for _, currentfs := range currentState {
+		deleteFileSystem(efssvc, currentfs.fileSystemID)
+	}
+}
+
 func ensureFileSystemState(desired fileSystems) {
 	// Set up API services
 	sess := getSession()
