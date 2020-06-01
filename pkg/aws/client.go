@@ -188,7 +188,7 @@ func getFileSystems(efssvc *efs.EFS) fileSystems {
 	return fsmap
 }
 
-// newFileSystem creates a new EFS file system and mount targets
+// newFileSystem creates a new EFS file system
 func newFileSystem(efssvc *efs.EFS, subnetIDs []*string, sgid string, ownedTag *efs.Tag, key string) string {
 	log.Info("Creating file system...", "key", key)
 	fsInput := &efs.CreateFileSystemInput{
@@ -227,7 +227,12 @@ func waitForFSAvailable(efssvc *efs.EFS, fs fileSystem) {
 
 func ensureMountTargets(efssvc *efs.EFS, fsid string, subnetIDs []*string, sgid string) {
 	log.Info("Creating mount targets...", "fsid", fsid)
+	seen := make(map[string]bool)
 	for _, subnetID := range subnetIDs {
+		if exists := seen[*subnetID]; exists {
+			continue
+		}
+		seen[*subnetID] = true
 		ensureMountTarget(efssvc, fsid, *subnetID, sgid)
 	}
 }
@@ -273,8 +278,33 @@ func deleteMountTargets(efssvc *efs.EFS, fsid string) {
 	descInput := &efs.DescribeMountTargetsInput{
 		FileSystemId: aws.String(fsid),
 	}
-	// Loop until the mount targets are gone
+	// First send a delete request to all the mount targets
+	descOutput, err := efssvc.DescribeMountTargets(descInput)
+	if err != nil {
+		panic(err)
+	}
+	if len(descOutput.MountTargets) == 0 {
+		// They're all gone already
+		return
+	}
+	for _, mt := range descOutput.MountTargets {
+		log.Info("Deleting mount target.", "mount target ID", *mt.MountTargetId)
+		delInput := &efs.DeleteMountTargetInput{
+			MountTargetId: mt.MountTargetId,
+		}
+		if _, err := efssvc.DeleteMountTarget(delInput); err != nil {
+			if _, ok := err.(*efs.MountTargetNotFound); !ok {
+				panic(err)
+			}
+		}
+	}
+
+	// Now we need to poll until the mount targets are gone
 	for {
+		// The first time through, we've *just* sent all the delete requests, so putting this
+		// sleep up front makes sense.
+		time.Sleep(time.Second * 2)
+
 		descOutput, err := efssvc.DescribeMountTargets(descInput)
 		if err != nil {
 			panic(err)
@@ -283,18 +313,11 @@ func deleteMountTargets(efssvc *efs.EFS, fsid string) {
 			// They're all gone
 			break
 		}
-		for _, mt := range descOutput.MountTargets {
-			log.Info("Deleting mount target.", "mount target ID", *mt.MountTargetId)
-			delInput := &efs.DeleteMountTargetInput{
-				MountTargetId: mt.MountTargetId,
-			}
-			if _, err := efssvc.DeleteMountTarget(delInput); err != nil {
-				if _, ok := err.(*efs.MountTargetNotFound); !ok {
-					panic(err)
-				}
-			}
+		mtList := make([]string, len(descOutput.MountTargets))
+		for i, mt := range descOutput.MountTargets {
+			mtList[i] = *mt.MountTargetId
 		}
-
+		log.Info("Waiting for mount targets.", "mount target IDs", mtList)
 	}
 }
 
