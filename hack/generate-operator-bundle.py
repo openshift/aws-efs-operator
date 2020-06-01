@@ -31,7 +31,7 @@ outdir = sys.argv[1]
 prev_version = sys.argv[2]
 git_num_commits = sys.argv[3]
 git_hash = sys.argv[4]
-aws_account_operator_image = sys.argv[5]
+aws_efs_operator_image = sys.argv[5]
 
 full_version = "%s.%s-%s" % (VERSION_BASE, git_num_commits, git_hash)
 print("Generating CSV for version: %s" % full_version)
@@ -70,14 +70,6 @@ for file_name in crd_files:
         }
     )
 
-# Copy all prometheus yaml files over to the bundle output dir:
-prom_files = [ f for f in os.listdir('deploy/prometheus') if f.endswith('.yaml') ]
-for file_name in prom_files:
-    full_path = os.path.join('deploy/prometheus', file_name)
-    if (os.path.isfile(os.path.join('deploy/prometheus', file_name))):
-        shutil.copy(full_path, os.path.join(version_dir, file_name))
-
-
 csv['spec']['install']['spec']['clusterPermissions'] = []
 
 # Add ${operator} role to the CSV:
@@ -109,7 +101,7 @@ with open('deploy/operator.yaml', 'r') as stream:
     csv['spec']['install']['spec']['deployments'][0]['spec'] = operator_deployment['spec']
 
 # Update the deployment to use the defined image:
-csv['spec']['install']['spec']['deployments'][0]['spec']['template']['spec']['containers'][0]['image'] = aws_account_operator_image
+csv['spec']['install']['spec']['deployments'][0]['spec']['template']['spec']['containers'][0]['image'] = aws_efs_operator_image
 
 # Update the versions to include git hash:
 csv['metadata']['name'] = "%s.v%s" % (OPERATOR_NAME, full_version)

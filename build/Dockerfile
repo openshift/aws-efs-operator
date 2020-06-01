@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 RUN make gobuild
 
-FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 ENV USER_UID=1001 \
     USER_NAME=aws-efs-operator
 
