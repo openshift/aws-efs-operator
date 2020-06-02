@@ -5,7 +5,8 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: aws-efs-operator
-  namespace: default
+  # TODO(efried): Template this from config/config.go?
+  namespace: openshift-aws-efs
 roleRef:
   kind: ClusterRole
   name: aws-efs-operator
