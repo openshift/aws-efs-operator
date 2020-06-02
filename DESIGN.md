@@ -16,6 +16,19 @@ This operator supports:
 - **EFS volumes**, by way of
 - The **CSI driver**.
 
+## Infrastructure
+
+### Go
+This project is developed against go version 1.13.6.
+To avoid surprises, you should use the same version when developing and testing locally.
+One handy way to do that is via [gvm](https://github.com/moovweb/gvm).
+
+    gvm use go1.13.6
+
+### Operator SDK
+This project was bootstrapped using [v0.16.0 of operator-sdk](https://github.com/operator-framework/operator-sdk/releases/tag/v0.16.0).
+Please use that version for further code generation and similar activities.
+
 ## Artifacts
 
 ### Custom Resource Definition
@@ -93,4 +106,7 @@ On each iteration of the reconciliation loop, the operator shall react to:
     deleted and should recreate both as if the associated `SharedVolume` were new. (TODO: we're not doing this at the moment.)
 
 ## Future
-In future versions, we would like the operator to be able to manage the EFS volumes and access points.
+
+* We would like the operator to be able to manage the EFS volumes and access points.
+* Better resiliency of PV/PVC binding problems.
+* Truly disallow editing a `SharedVolume`.
