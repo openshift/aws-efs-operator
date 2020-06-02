@@ -20,7 +20,7 @@ import (
 // The current implementation uses a specific metadata.label key/value to indicate ownership.
 const (
 	// labelKey is the ObjectMeta.Label key for objects this operator controls
-	labelKey   = "openshift.io/efs-csi-operator-owned"
+	labelKey = "openshift.io/aws-efs-operator-owned"
 	// labelValue is the ObjectMeta.Label value for objects this operator controls
 	labelValue = "true"
 )

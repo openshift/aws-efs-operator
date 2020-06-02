@@ -1,14 +1,14 @@
 package statics
 
-//go:generate go-bindata -nocompress -pkg statics -o defs.go defs/
+//go:generate go-bindata -nocompress -pkg statics -o zz_generated_defs.go defs/
 
 /**
  * `EnsurableImpl`s for resources that are one-per-cluster (even if namespace-scoped) and should never change.
  */
 
 import (
-	"2uasimojo/efs-csi-operator/pkg/util"
 	"fmt"
+	"openshift/aws-efs-operator/pkg/util"
 	"path/filepath"
 	"reflect"
 
@@ -98,34 +98,34 @@ func init() {
 
 	staticResources = []util.Ensurable{
 		&util.EnsurableImpl{
-			ObjType: &corev1.ServiceAccount{},
+			ObjType:        &corev1.ServiceAccount{},
 			NamespacedName: getNSName(saDef),
-			Definition: saDef,
-			EqualFunc: alwaysEqual,
+			Definition:     saDef,
+			EqualFunc:      alwaysEqual,
 		},
 		&util.EnsurableImpl{
-			ObjType: &securityv1.SecurityContextConstraints{},
+			ObjType:        &securityv1.SecurityContextConstraints{},
 			NamespacedName: getNSName(sccDef),
-			Definition: sccDef,
+			Definition:     sccDef,
 			// SCC has no Spec; the meat is at the top level
 			EqualFunc: equalOtherThanMeta,
 		},
 		&util.EnsurableImpl{
-			ObjType: &appsv1.DaemonSet{},
+			ObjType:        &appsv1.DaemonSet{},
 			NamespacedName: getNSName(dsDef),
-			Definition: dsDef,
-			EqualFunc: daemonSetEqual,
+			Definition:     dsDef,
+			EqualFunc:      daemonSetEqual,
 		},
 		&util.EnsurableImpl{
-			ObjType: &storagev1beta1.CSIDriver{},
+			ObjType:        &storagev1beta1.CSIDriver{},
 			NamespacedName: getNSName(csiDef),
-			Definition: csiDef,
-			EqualFunc: csiDriverEqual,
+			Definition:     csiDef,
+			EqualFunc:      csiDriverEqual,
 		},
 		&util.EnsurableImpl{
-			ObjType: &storagev1.StorageClass{},
+			ObjType:        &storagev1.StorageClass{},
 			NamespacedName: getNSName(scDef),
-			Definition: scDef,
+			Definition:     scDef,
 			// StorageClass has no Spec; the meat is at the top level
 			EqualFunc: equalOtherThanMeta,
 		},

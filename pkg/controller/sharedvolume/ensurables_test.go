@@ -3,9 +3,9 @@ package sharedvolume
 // Test cases for the PV and PVC Ensurables
 
 import (
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
-	"2uasimojo/efs-csi-operator/pkg/test"
-	util "2uasimojo/efs-csi-operator/pkg/util"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
+	"openshift/aws-efs-operator/pkg/test"
+	util "openshift/aws-efs-operator/pkg/util"
 
 	"testing"
 
@@ -22,12 +22,12 @@ const (
 	fakeSVName    = "my-shared-volume"
 )
 
-var sharedVolume = efscsiv1alpha1.SharedVolume{
+var sharedVolume = awsefsv1alpha1.SharedVolume{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      fakeSVName,
 		Namespace: fakeNamespace,
 	},
-	Spec: efscsiv1alpha1.SharedVolumeSpec{
+	Spec: awsefsv1alpha1.SharedVolumeSpec{
 		AccessPointID: fakeAPID,
 		FileSystemID:  fakeFSID,
 	},
@@ -35,7 +35,7 @@ var sharedVolume = efscsiv1alpha1.SharedVolume{
 
 // validateSharedVolumeOwner makes sure that `toSharedVolume` on `def` returns a `Request` that points
 // to `sharedVolume`, proving that `def` was created using `setSharedVolumeOwner`, and that worked.
-func validateSharedVolumeOwner(t *testing.T, def runtime.Object, sharedVolume *efscsiv1alpha1.SharedVolume) {
+func validateSharedVolumeOwner(t *testing.T, def runtime.Object, sharedVolume *awsefsv1alpha1.SharedVolume) {
 	// To run toSharedVolume, we have to create a MapObject
 	mo := handler.MapObject{
 		Meta:   def.(metav1.Object),
@@ -117,12 +117,12 @@ func TestCache(t *testing.T) {
 	apid2 := "apid2"
 	ns2 := "project2"
 	// Make a different SharedVolume with the same name in a different namespace.
-	sv2 := efscsiv1alpha1.SharedVolume{
+	sv2 := awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fakeSVName,
 			Namespace: ns2,
 		},
-		Spec: efscsiv1alpha1.SharedVolumeSpec{
+		Spec: awsefsv1alpha1.SharedVolumeSpec{
 			AccessPointID: apid2,
 			FileSystemID:  fsid2,
 		},
@@ -158,7 +158,7 @@ func TestCache(t *testing.T) {
 func TestToSharedVolumeUnlabeled(t *testing.T) {
 	o := &corev1.Pod{}
 	mo := handler.MapObject{
-		Meta: o,
+		Meta:   o,
 		Object: o,
 	}
 	rqList := toSharedVolume(mo)

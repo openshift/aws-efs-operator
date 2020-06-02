@@ -3,7 +3,7 @@ package sharedvolume
 // Helpers for mapping secondary resources back to the SharedVolume that owns them.
 
 import (
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	svOwnerNamespaceKey = "openshift.io/efs-csi-operator-shared-volume-owner-namespace"
-	svOwnerNameKey = "openshift.io/efs-csi-operator-shared-volume-owner-name"
+	svOwnerNamespaceKey = "openshift.io/aws-efs-operator-shared-volume-owner-namespace"
+	svOwnerNameKey      = "openshift.io/aws-efs-operator-shared-volume-owner-name"
 )
 
 func toSharedVolume(mo handler.MapObject) []reconcile.Request {
@@ -29,14 +29,14 @@ func toSharedVolume(mo handler.MapObject) []reconcile.Request {
 	return []reconcile.Request{
 		{
 			NamespacedName: types.NamespacedName{
-				Namespace: svNamespace, 
-				Name: svName,
+				Namespace: svNamespace,
+				Name:      svName,
 			},
 		},
 	}
 }
 
-func setSharedVolumeOwner(owned metav1.Object, owner *efscsiv1alpha1.SharedVolume) {
+func setSharedVolumeOwner(owned metav1.Object, owner *awsefsv1alpha1.SharedVolume) {
 	// Note: Owner References would theoretically be a better fit here, but they're heavier than
 	// what we need, and the existing utilities (controller-runtime/pkg/controller/controllerutil)
 	// forbid ownership across namespaces, including between namespace- and cluster-scoped. KISS.

@@ -1,13 +1,13 @@
 package sharedvolume
 
 import (
-	efscsiv1alpha1 "2uasimojo/efs-csi-operator/pkg/apis/efscsi/v1alpha1"
-	"2uasimojo/efs-csi-operator/pkg/controller/statics"
-	"2uasimojo/efs-csi-operator/pkg/fixtures"
-	"2uasimojo/efs-csi-operator/pkg/test"
-	"2uasimojo/efs-csi-operator/pkg/util"
 	"encoding/json"
 	"fmt"
+	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
+	"openshift/aws-efs-operator/pkg/controller/statics"
+	"openshift/aws-efs-operator/pkg/fixtures"
+	"openshift/aws-efs-operator/pkg/test"
+	"openshift/aws-efs-operator/pkg/util"
 	"runtime/debug"
 
 	"context"
@@ -34,9 +34,9 @@ var ctx = context.TODO()
 func fakeReconciler() *ReconcileSharedVolume {
 	sch := scheme.Scheme
 	sch.AddKnownTypes(
-		efscsiv1alpha1.SchemeGroupVersion,
-		&efscsiv1alpha1.SharedVolume{},
-		&efscsiv1alpha1.SharedVolumeList{},
+		awsefsv1alpha1.SchemeGroupVersion,
+		&awsefsv1alpha1.SharedVolume{},
+		&awsefsv1alpha1.SharedVolumeList{},
 	)
 
 	return &ReconcileSharedVolume{
@@ -58,7 +58,7 @@ func mockReconciler(ctrl *gomock.Controller) (*ReconcileSharedVolume, *fixtures.
 }
 
 // These save typing and allow us to abstract the Stringer interface
-type svMapType map[string]*efscsiv1alpha1.SharedVolume
+type svMapType map[string]*awsefsv1alpha1.SharedVolume
 type pvMapType map[string]*corev1.PersistentVolume
 type pvcMapType map[string]*corev1.PersistentVolumeClaim
 
@@ -79,7 +79,7 @@ func (m pvcMapType) String() string { return format(m) }
 // PersistentVolume, and PersistentVolumeClaim resources found by querying the `client`.
 func getResources(t *testing.T, client crclient.Client) (svMapType, pvMapType, pvcMapType) {
 
-	svList := &efscsiv1alpha1.SharedVolumeList{}
+	svList := &awsefsv1alpha1.SharedVolumeList{}
 	if err := client.List(context.TODO(), svList); err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func getResources(t *testing.T, client crclient.Client) (svMapType, pvMapType, p
 		return fmt.Sprintf("%s/%s", o.GetNamespace(), o.GetName())
 	}
 
-	svMap := make(map[string]*efscsiv1alpha1.SharedVolume)
+	svMap := make(map[string]*awsefsv1alpha1.SharedVolume)
 	for _, sv := range svList.Items {
 		svMap[keyfunc(&sv)] = &sv
 	}
@@ -122,7 +122,7 @@ func getResources(t *testing.T, client crclient.Client) (svMapType, pvMapType, p
 // to the SharedVolume, PersistentVolume, and PVC resources.
 func validateResources(
 	t *testing.T, client crclient.Client, expectedCount int) (
-	map[string]*efscsiv1alpha1.SharedVolume, map[string]*corev1.PersistentVolume, map[string]*corev1.PersistentVolumeClaim) {
+	map[string]*awsefsv1alpha1.SharedVolume, map[string]*corev1.PersistentVolume, map[string]*corev1.PersistentVolumeClaim) {
 
 	svMap, pvMap, pvcMap := getResources(t, client)
 
@@ -148,7 +148,7 @@ func validateResources(
 		}
 
 		// Check the SharedVolume's Status
-		if sv.Status.Phase != efscsiv1alpha1.SharedVolumeReady {
+		if sv.Status.Phase != awsefsv1alpha1.SharedVolumeReady {
 			t.Fatalf("Expected Ready status, but got %s", sv.Status.Phase)
 		}
 		if sv.Status.ClaimRef.Name != pvc.Name {
@@ -160,7 +160,7 @@ func validateResources(
 	return svMap, pvMap, pvcMap
 }
 
-func makeRequest(t *testing.T, sv *efscsiv1alpha1.SharedVolume) reconcile.Request {
+func makeRequest(t *testing.T, sv *awsefsv1alpha1.SharedVolume) reconcile.Request {
 	nsname, err := crclient.ObjectKeyFromObject(sv)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func TestReconcile(t *testing.T) {
 		ape = "fsap-2222222e"
 	)
 	var (
-		sv1, sv2   *efscsiv1alpha1.SharedVolume
+		sv1, sv2   *awsefsv1alpha1.SharedVolume
 		svMap      svMapType
 		pvMap      pvMapType
 		pvcMap     pvcMapType
@@ -198,12 +198,12 @@ func TestReconcile(t *testing.T) {
 
 	// Green path: create a SharedVolume resource and reconcile; the corresponding PV and PVC
 	// should be created.
-	sv1 = &efscsiv1alpha1.SharedVolume{
+	sv1 = &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sva,
 			Namespace: nsx,
 		},
-		Spec: efscsiv1alpha1.SharedVolumeSpec{
+		Spec: awsefsv1alpha1.SharedVolumeSpec{
 			AccessPointID: apd,
 			FileSystemID:  fs1,
 		},
@@ -241,7 +241,7 @@ func TestReconcile(t *testing.T) {
 	if err = r.client.Get(ctx, req.NamespacedName, sv1); err != nil {
 		t.Fatal(err)
 	}
-	if sv1.Status.Phase != efscsiv1alpha1.SharedVolumePending || sv1.Status.ClaimRef.Name != "" {
+	if sv1.Status.Phase != awsefsv1alpha1.SharedVolumePending || sv1.Status.ClaimRef.Name != "" {
 		t.Fatalf("Expected Pending Status (no claim), but got %v", sv1.Status)
 	}
 	// Our SharedVolume should still be the only thing that exists
@@ -265,12 +265,12 @@ func TestReconcile(t *testing.T) {
 	validateResources(t, r.client, 1)
 
 	// Let's create another in a different namespace but with the same access point
-	sv2 = &efscsiv1alpha1.SharedVolume{
+	sv2 = &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svb,
 			Namespace: nsy,
 		},
-		Spec: efscsiv1alpha1.SharedVolumeSpec{
+		Spec: awsefsv1alpha1.SharedVolumeSpec{
 			AccessPointID: apd,
 			FileSystemID:  fs1,
 		},
@@ -461,7 +461,7 @@ func TestUneditGetError(t *testing.T) {
 
 	r, client := mockReconciler(ctrl)
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",
@@ -479,10 +479,10 @@ func TestUneditGetError(t *testing.T) {
 	}
 
 	gomock.InOrder(
-		client.EXPECT().Get(ctx, svNSName, &efscsiv1alpha1.SharedVolume{}).Do(
+		client.EXPECT().Get(ctx, svNSName, &awsefsv1alpha1.SharedVolume{}).Do(
 			// The Get() call populates the SharedVolume object
 			func(ctx context.Context, key crclient.ObjectKey, obj runtime.Object) {
-				*obj.(*efscsiv1alpha1.SharedVolume) = *sv
+				*obj.(*awsefsv1alpha1.SharedVolume) = *sv
 			},
 		),
 		client.EXPECT().Get(ctx, pvNSName, &corev1.PersistentVolume{}).Return(fixtures.AlreadyExists),
@@ -500,12 +500,12 @@ func TestUneditUpdateError(t *testing.T) {
 
 	r, client := mockReconciler(ctrl)
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",
 		},
-		Spec: efscsiv1alpha1.SharedVolumeSpec{
+		Spec: awsefsv1alpha1.SharedVolumeSpec{
 			AccessPointID: "ap",
 			FileSystemID:  "fs",
 		},
@@ -526,10 +526,10 @@ func TestUneditUpdateError(t *testing.T) {
 	svUpdate.Spec.FileSystemID = "abc123"
 
 	gomock.InOrder(
-		client.EXPECT().Get(ctx, svNSName, &efscsiv1alpha1.SharedVolume{}).Do(
+		client.EXPECT().Get(ctx, svNSName, &awsefsv1alpha1.SharedVolume{}).Do(
 			// The first Get() call populates the SharedVolume object
 			func(ctx context.Context, key crclient.ObjectKey, obj runtime.Object) {
-				*obj.(*efscsiv1alpha1.SharedVolume) = *sv
+				*obj.(*awsefsv1alpha1.SharedVolume) = *sv
 			},
 		),
 		client.EXPECT().Get(ctx, pve.GetNamespacedName(), &corev1.PersistentVolume{}).Do(
@@ -571,7 +571,7 @@ func TestFinalizerUpdateError(t *testing.T) {
 
 	r, client := mockReconciler(ctrl)
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",
@@ -580,7 +580,7 @@ func TestFinalizerUpdateError(t *testing.T) {
 
 	gomock.InOrder(
 		// First the reconciler gets the SharedVolume
-		client.EXPECT().Get(ctx, gomock.Any(), &efscsiv1alpha1.SharedVolume{}).Return(nil),
+		client.EXPECT().Get(ctx, gomock.Any(), &awsefsv1alpha1.SharedVolume{}).Return(nil),
 		// uneditSharedVolume checks for the PV. We'll say it's 404 to make unedit return quick.
 		client.EXPECT().Get(ctx, gomock.Any(), &corev1.PersistentVolume{}).Return(fixtures.NotFound),
 		// Now we add the finalizer and try to update; trigger the error there.
@@ -599,7 +599,7 @@ func TestFinalizerUpdateError(t *testing.T) {
 // otherwise expect. This should be used (sparingly - it's a hack) to "mock" the behavior of a PV
 // or PVC Ensurable in a test flow that is otherwise out of our control, like and end-to-end
 // Reconcile with a fake (as opposed to mocked) client.
-func hijackEnsurable(rtype runtime.Object, sv *efscsiv1alpha1.SharedVolume, ensurable util.Ensurable) {
+func hijackEnsurable(rtype runtime.Object, sv *awsefsv1alpha1.SharedVolume, ensurable util.Ensurable) {
 	// Replace the value in the global cache.
 	// TODO: This sucks, and has the potential to blow up if tests run in parallel. They don't
 	// at the time of this writing, but...
@@ -623,7 +623,7 @@ func TestEnsureFails(t *testing.T) {
 
 	r := fakeReconciler()
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sv",
 			Namespace: "proj1",
@@ -646,7 +646,7 @@ func TestEnsureFails(t *testing.T) {
 	}
 	// Sanity-check the initial SV Status
 	sv = svMap["proj1/sv"]
-	if sv.Status.Phase != efscsiv1alpha1.SharedVolumePending || sv.Status.Message != "" {
+	if sv.Status.Phase != awsefsv1alpha1.SharedVolumePending || sv.Status.Message != "" {
 		t.Errorf("Expected Pending Phase and no Message but got %v", sv)
 	}
 
@@ -683,7 +683,7 @@ func TestEnsureFails(t *testing.T) {
 			svMap, pvMap, pvcMap)
 	}
 	sv = svMap["proj1/sv"]
-	if sv.Status.Phase != efscsiv1alpha1.SharedVolumeFailed || sv.Status.Message != "NotFound" {
+	if sv.Status.Phase != awsefsv1alpha1.SharedVolumeFailed || sv.Status.Message != "NotFound" {
 		t.Errorf("Expected Failed Phase and NotFound Message but got %v", sv)
 	}
 
@@ -698,7 +698,7 @@ func TestEnsureFails(t *testing.T) {
 	}
 	// The second failure should have updated the status message to the other error
 	sv = svMap["proj1/sv"]
-	if sv.Status.Phase != efscsiv1alpha1.SharedVolumeFailed || sv.Status.Message != "AlreadyExists" {
+	if sv.Status.Phase != awsefsv1alpha1.SharedVolumeFailed || sv.Status.Message != "AlreadyExists" {
 		t.Errorf("Expected Failed Phase and NotFound Message but got %v", sv)
 	}
 }
@@ -712,10 +712,10 @@ func TestDeleteFail(t *testing.T) {
 	r, client := mockReconciler(ctrl)
 	logger := fixtures.NewMockLogger(ctrl)
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sv",
-			Namespace: "proj1",
+			Name:       "sv",
+			Namespace:  "proj1",
 			Finalizers: []string{svFinalizer},
 		},
 	}
@@ -764,14 +764,14 @@ func TestUpdateStatusFail(t *testing.T) {
 	r, client := mockReconciler(ctrl)
 	logger := fixtures.NewMockLogger(ctrl)
 
-	sv := &efscsiv1alpha1.SharedVolume{
+	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sv",
-			Namespace: "proj1",
+			Name:       "sv",
+			Namespace:  "proj1",
 			Finalizers: []string{svFinalizer},
 		},
-		Status: efscsiv1alpha1.SharedVolumeStatus{
-			Phase: efscsiv1alpha1.SharedVolumePending,
+		Status: awsefsv1alpha1.SharedVolumeStatus{
+			Phase: awsefsv1alpha1.SharedVolumePending,
 		},
 	}
 
