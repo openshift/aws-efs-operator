@@ -4,5 +4,5 @@ oc delete \
   scc/efs-csi-scc \
   csidriver/efs.csi.aws.com \
   storageclass/efs-sc \
-  serviceaccount/aws-efs-operator \
+  serviceaccount/efs-csi-sa \
   daemonset/efs-csi-node
