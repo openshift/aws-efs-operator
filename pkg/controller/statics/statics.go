@@ -169,6 +169,7 @@ func discoverNamespace() {
 	namespaceName, err = k8sutil.GetOperatorNamespace()
 	if err == nil {
 		glog.Info("Running in a cluster; discovered namespace.", "namespace", namespaceName)
+		return
 	}
 
 	glog.Info("Not running in a cluster; discovering namespace from config")
