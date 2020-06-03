@@ -79,7 +79,7 @@ func defsCsidriverYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
+	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1591046884, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -102,7 +102,7 @@ spec:
         app: efs-csi-node
     spec:
       # DELTA: Added
-      serviceAccountName: aws-efs-operator
+      serviceAccountName: efs-csi-sa
       # DELTA: Removed
       # priorityClassName: system-node-critical
       nodeSelector:
@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3709, mode: os.FileMode(436), modTime: time.Unix(1589926432, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1591106033, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -265,7 +265,7 @@ func defsSccYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1589578069, 0)}
+	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1591046884, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -274,7 +274,7 @@ var _defsServiceaccountYaml = []byte(`# Privileged service account for the EFS C
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: aws-efs-operator
+  name: efs-csi-sa
   # NOTE: namespace is set dynamically after this is loaded.
 `)
 
@@ -288,7 +288,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 196, mode: os.FileMode(436), modTime: time.Unix(1589926432, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 190, mode: os.FileMode(436), modTime: time.Unix(1591106055, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
