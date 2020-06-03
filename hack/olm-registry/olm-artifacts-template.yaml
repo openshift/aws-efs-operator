@@ -12,30 +12,39 @@ parameters:
   value: latest
 
 objects:
-- apiVersion: operators.coreos.com/v1alpha1
-  kind: CatalogSource
+- apiVersion: hive.openshift.io/v1
+  kind: SelectorSyncSet
   metadata:
-    name: aws-efs-operator-catalog
+    name: aws-efs-operator-sss
+    namespace: __JAMES__
   spec:
-    sourceType: grpc
-    image: ${REGISTRY_IMG}:${CHANNEL}-${IMAGE_TAG}
-    displayName: aws-efs-operator Registry
-    publisher: SRE
-
-- apiVersion: operators.coreos.com/v1alpha2
-  kind: OperatorGroup
-  metadata:
-    name: aws-efs-operator-og
-  spec:
-    targetNamespaces:
-    - aws-efs-operator
-
-- apiVersion: operators.coreos.com/v1alpha1
-  kind: Subscription
-  metadata:
-    name: aws-efs-operator
-  spec:
-    channel: ${CHANNEL}
-    name: aws-efs-operator
-    source: aws-efs-operator-catalog
-    sourceNamespace: aws-efs-operator
+    clusterDeploymentSelector:
+      matchLabels:
+        api.openshift.com/managed: "true"
+    resourceApplyMode: Sync
+    resources:
+    - apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      metadata:
+        name: aws-efs-operator-catalog
+      spec:
+        sourceType: grpc
+        image: ${REGISTRY_IMG}:${CHANNEL}-${IMAGE_TAG}
+        displayName: aws-efs-operator Registry
+        publisher: SRE
+    - apiVersion: operators.coreos.com/v1alpha2
+      kind: OperatorGroup
+      metadata:
+        name: aws-efs-operator-og
+      spec:
+        targetNamespaces:
+        - aws-efs-operator
+    - apiVersion: operators.coreos.com/v1alpha1
+      kind: Subscription
+      metadata:
+        name: aws-efs-operator
+      spec:
+        channel: ${CHANNEL}
+        name: aws-efs-operator
+        source: aws-efs-operator-catalog
+        sourceNamespace: aws-efs-operator
