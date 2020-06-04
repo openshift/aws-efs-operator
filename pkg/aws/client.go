@@ -334,12 +334,33 @@ func deleteFileSystem(efssvc *efs.EFS, fsid string) {
 	}
 }
 
+func deleteAccessPoint(efssvc *efs.EFS, fsid string, apid string) {
+	log.Info("Removing access point...", "fsid", fsid, "apid", apid)
+	dapInput := &efs.DeleteAccessPointInput{
+		AccessPointId: aws.String(apid),
+	}
+	if _, err := efssvc.DeleteAccessPoint(dapInput); err != nil {
+		panic(fmt.Sprintf("Couldn't remove access point %s: %v", apid, err))
+	}
+}
+
 func deleteEverything() {
 	sess := getSession()
 	efssvc := getEFS(sess)
 	currentState := getFileSystems(efssvc)
 	for _, currentfs := range currentState {
 		deleteFileSystem(efssvc, currentfs.fileSystemID)
+	}
+}
+
+func discoverPrint() {
+	sess := getSession()
+	efssvc := getEFS(sess)
+	currentState := getFileSystems(efssvc)
+	for _, fs := range currentState {
+		for _, ap := range fs.accessPoints {
+			fmt.Printf("%s:%s\n", fs.fileSystemID, ap)
+		}
 	}
 }
 
@@ -366,10 +387,29 @@ func ensureFileSystemState(desired fileSystems) {
 	// First remove any extraneous file systems.
 	for fskey, currentfs := range currentState {
 		if _, ok := desired[fskey]; ok {
-			// It's a desired file system, so leave it
-			continue
+			// This fs was desired; keep it
+
+			// Reconcile access points.
+			// First remove any extraneous access points.
+			for apkey, currentap := range currentfs.accessPoints {
+				if _, ok := desired[fskey].accessPoints[apkey]; !ok {
+					deleteAccessPoint(efssvc, currentfs.fileSystemID, currentap)
+				}
+			}
+
+			// Now create any access points that don't exist yet
+			for apkey := range desired[fskey].accessPoints {
+				if _, ok := currentfs.accessPoints[apkey]; ok {
+					// Access point exists
+					continue
+				}
+				apid := newAccessPoint(efssvc, currentfs.fileSystemID, apkey)
+				currentfs.accessPoints[apkey] = apid
+			}
+
+		} else {
+			deleteFileSystem(efssvc, currentfs.fileSystemID)
 		}
-		deleteFileSystem(efssvc, currentfs.fileSystemID)
 	}
 
 	// Now create any file systems that don't exist yet

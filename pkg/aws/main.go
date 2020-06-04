@@ -14,7 +14,7 @@ type spec map[string][]string
 func usage() {
 	fmt.Fprintf(
 		flag.CommandLine.Output(),
-		"Usage: %s {--spec PATH | --delete-all}\n\n", os.Args[0])
+		"Usage: %s {--spec PATH | --discover | --delete-all}\n\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -43,22 +43,40 @@ have two access points; the third will have none.`)
 		false,
 		"Delete all mount targets, file systems, and access points.")
 
+	var discover = flag.Bool(
+		"discover",
+		false,
+		`Discover and print file system and access point pairs, one per line, e.g.
+    fs-a99c122a:fsap-099537fb4bb7d50ea
+    fs-b89c123b:fsap-04e855ae78fe51eed
+    fs-b89c123b:fsap-0b02dc545c4f9b076`)
+
 	flag.Parse()
 
-	if *specfile == "" && !*deleteAll {
-		usage()
-		os.Exit(1)
+	numopts := 0
+	if *specfile != "" {
+		numopts++
 	}
-
-	if *specfile != "" && *deleteAll {
+	if *deleteAll {
+		numopts++
+	}
+	if *discover {
+		numopts++
+	}
+	if numopts != 1 {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
-			"--spec and --delete-all are mutually exclusive.\nUse -h for help.\n")
+			"Must specify exactly one of --spec, --delete-all, and --discover.\nUse -h for help.\n")
 		os.Exit(2)
 	}
 
 	if *deleteAll {
 		deleteEverything()
+		os.Exit(0)
+	}
+
+	if *discover {
+		discoverPrint()
 		os.Exit(0)
 	}
 
