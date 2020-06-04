@@ -226,7 +226,7 @@ func waitForFSAvailable(efssvc *efs.EFS, fs fileSystem) {
 }
 
 func ensureMountTargets(efssvc *efs.EFS, fsid string, subnetIDs []*string, sgid string) {
-	log.Info("Creating mount targets...", "fsid", fsid)
+	log.Info("Ensuring mount targets...", "fsid", fsid)
 	seen := make(map[string]bool)
 	for _, subnetID := range subnetIDs {
 		if exists := seen[*subnetID]; exists {
@@ -243,11 +243,13 @@ func ensureMountTarget(efssvc *efs.EFS, fsid string, subnetID string, sgid strin
 		SecurityGroups: []*string{aws.String(sgid)},
 		SubnetId:       aws.String(subnetID),
 	}
-	mtDesc, err := efssvc.CreateMountTarget(cmtInput)
-	if err != nil {
+	if mtDesc, err := efssvc.CreateMountTarget(cmtInput); err == nil {
+		log.Info("Created mount target", "mount target ID", *mtDesc.MountTargetId)
+	} else if _, ok := err.(*efs.MountTargetConflict); ok {
+		log.Info("Mount target already exists for subnet", "subnet ID", subnetID)
+	} else {
 		panic(err)
 	}
-	log.Info("Created mount target", "mount target ID", *mtDesc.MountTargetId)
 }
 
 func newAccessPoint(efssvc *efs.EFS, fsid string, key string) string {
