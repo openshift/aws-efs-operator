@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -225,15 +226,57 @@ func waitForFSAvailable(efssvc *efs.EFS, fs fileSystem) {
 	}
 }
 
+func waitForAccessPointsAvailable(efssvc *efs.EFS, fsid string) {
+	dapInput := &efs.DescribeAccessPointsInput{
+		FileSystemId: aws.String(fsid),
+	}
+POLL:
+	dapOutput, err := efssvc.DescribeAccessPoints(dapInput)
+	if err != nil {
+		panic(err)
+	}
+	for _, ap := range dapOutput.AccessPoints {
+		if *ap.LifeCycleState != "available" {
+			log.Info("Still waiting for at least one access point.", "access point ID", *ap.AccessPointId)
+			time.Sleep(time.Second)
+			goto POLL
+		}
+	}
+}
+
 func ensureMountTargets(efssvc *efs.EFS, fsid string, subnetIDs []*string, sgid string) {
 	log.Info("Ensuring mount targets...", "fsid", fsid)
 	seen := make(map[string]bool)
+	var wg sync.WaitGroup
 	for _, subnetID := range subnetIDs {
 		if exists := seen[*subnetID]; exists {
 			continue
 		}
 		seen[*subnetID] = true
-		ensureMountTarget(efssvc, fsid, *subnetID, sgid)
+		wg.Add(1)
+		go func(subnetID string) {
+			defer wg.Done()
+			ensureMountTarget(efssvc, fsid, subnetID, sgid)
+		}(*subnetID)
+	}
+	wg.Wait()
+
+	// Wait for mount targets to be available
+POLL:
+	dmtInput := &efs.DescribeMountTargetsInput{
+		FileSystemId: aws.String(fsid),
+	}
+	dmtOutput, err := efssvc.DescribeMountTargets(dmtInput)
+	if err != nil {
+		panic(err)
+	}
+	for _, mt := range dmtOutput.MountTargets {
+		if *mt.LifeCycleState != "available" {
+			log.Info("Still waiting for at least one mount target.", "mount target ID", *mt.MountTargetId)
+			// Ugh, these take forever :(
+			time.Sleep(time.Second * 6)
+			goto POLL
+		}
 	}
 }
 
@@ -348,9 +391,15 @@ func deleteEverything() {
 	sess := getSession()
 	efssvc := getEFS(sess)
 	currentState := getFileSystems(efssvc)
+	var wg sync.WaitGroup
 	for _, currentfs := range currentState {
-		deleteFileSystem(efssvc, currentfs.fileSystemID)
+		wg.Add(1)
+		go func(fsid string) {
+			defer wg.Done()
+			deleteFileSystem(efssvc, fsid)
+		}(currentfs.fileSystemID)
 	}
+	wg.Wait()
 }
 
 func discoverPrint() {
@@ -385,6 +434,7 @@ func ensureFileSystemState(desired fileSystems) {
 
 	// Now reconcile the current state with the desired state
 	// First remove any extraneous file systems.
+	// TODO(efried): Async this. But it's hit infrequently, so meh.
 	for fskey, currentfs := range currentState {
 		if _, ok := desired[fskey]; ok {
 			// This fs was desired; keep it
@@ -413,29 +463,30 @@ func ensureFileSystemState(desired fileSystems) {
 	}
 
 	// Now create any file systems that don't exist yet
+	var wg sync.WaitGroup
 	for fskey, desiredfs := range desired {
-		var fsid string
-		currentfs, ok := currentState[fskey]
-		if ok {
-			fsid = currentfs.fileSystemID
-		} else {
-			fsid = newFileSystem(efssvc, subnetIDs, sgid, efsTag, fskey)
-			currentfs = fileSystem{
-				fileSystemID: fsid,
-				accessPoints: make(accessPoints),
+		wg.Add(1)
+		go func(fskey string, desiredfs fileSystem) {
+			defer wg.Done()
+			currentfs, ok := currentState[fskey]
+			if !ok {
+				currentfs = fileSystem{
+					fileSystemID: newFileSystem(efssvc, subnetIDs, sgid, efsTag, fskey),
+					accessPoints: make(accessPoints),
+				}
 			}
-			currentState[fskey] = currentfs
-		}
-		waitForFSAvailable(efssvc, currentfs)
-		ensureMountTargets(efssvc, fsid, subnetIDs, sgid)
+			waitForFSAvailable(efssvc, currentfs)
+			ensureMountTargets(efssvc, currentfs.fileSystemID, subnetIDs, sgid)
 
-		for apkey := range desiredfs.accessPoints {
-			if _, ok := currentfs.accessPoints[apkey]; ok {
-				// Access point already exists
-				continue
+			for apkey := range desiredfs.accessPoints {
+				if _, ok := currentfs.accessPoints[apkey]; ok {
+					// Access point already exists
+					continue
+				}
+				newAccessPoint(efssvc, currentfs.fileSystemID, apkey)
 			}
-			apid := newAccessPoint(efssvc, fsid, apkey)
-			currentfs.accessPoints[apkey] = apid
-		}
+			waitForAccessPointsAvailable(efssvc, currentfs.fileSystemID)
+		}(fskey, desiredfs)
 	}
+	wg.Wait()
 }
