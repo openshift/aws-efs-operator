@@ -61,9 +61,15 @@ push:
 	docker push $(OPERATOR_IMAGE_URI)
 	docker push $(OPERATOR_IMAGE_URI_LATEST)
 
+# These names are used by the app-sre pipeline targets
+.PHONY: docker-build
+docker-build: build
+.PHONY: docker-push
+docker-push: push
+
 .PHONY: gocheck
 gocheck: ## Lint code
-	hack/golint.sh
+	boilerplate/openshift/golang_osd_cluster_operator/golint.sh
 	${GOENV} go vet ./cmd/... ./pkg/...
 
 .PHONY: gogenerate
@@ -90,7 +96,7 @@ gotest:
 
 .PHONY: coverage
 coverage:
-	hack/codecov.sh
+	boilerplate/openshift/golang_osd_cluster_operator/codecov.sh
 
 .PHONY: envtest
 envtest: isclean
