@@ -1,6 +1,6 @@
 package statics
 
-//go:generate go-bindata -nocompress -pkg statics -o zz_generated_defs.go defs/
+//go:generate go-bindata -nocompress -nometadata -pkg statics -o zz_generated_defs.go defs/
 
 /**
  * `EnsurableImpl`s for resources that are one-per-cluster (even if namespace-scoped) and should never change.

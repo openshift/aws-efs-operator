@@ -79,7 +79,7 @@ func defsCsidriverYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 328, mode: os.FileMode(436), modTime: time.Unix(1591046884, 0)}
+	info := bindataFileInfo{name: "defs/csidriver.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -210,7 +210,7 @@ func defsDaemonsetYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 3703, mode: os.FileMode(436), modTime: time.Unix(1591106033, 0)}
+	info := bindataFileInfo{name: "defs/daemonset.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -265,7 +265,7 @@ func defsSccYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/scc.yaml", size: 794, mode: os.FileMode(436), modTime: time.Unix(1591046884, 0)}
+	info := bindataFileInfo{name: "defs/scc.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -288,7 +288,7 @@ func defsServiceaccountYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 190, mode: os.FileMode(436), modTime: time.Unix(1591106055, 0)}
+	info := bindataFileInfo{name: "defs/serviceaccount.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -313,7 +313,7 @@ func defsStorageclassYaml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "defs/storageclass.yaml", size: 158, mode: os.FileMode(436), modTime: time.Unix(1589570562, 0)}
+	info := bindataFileInfo{name: "defs/storageclass.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
