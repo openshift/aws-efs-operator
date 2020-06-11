@@ -23,3 +23,7 @@ docker-build: build
 # Push the docker image
 .PHONY: docker-push
 docker-push: push
+
+.PHONY: pr-check
+pr-check:
+	hack/app_sre_pr_check.sh
