@@ -24,7 +24,7 @@ spec:
   maturity: alpha
   installModes:
   - type: OwnNamespace
-    supported: true
+    supported: false
   - type: SingleNamespace
     supported: false
   - type: MultiNamespace
