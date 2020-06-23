@@ -56,6 +56,7 @@ func pvEqual(local, server runtime.Object) bool {
 
 func pvDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.PersistentVolume {
 	filesystem := corev1.PersistentVolumeFilesystem
+	volumeHandle := fmt.Sprintf("%s::%s", sharedVolume.Spec.FileSystemID, sharedVolume.Spec.AccessPointID)
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pvNameForSharedVolume(sharedVolume),
@@ -70,14 +71,10 @@ func pvDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.PersistentV
 			AccessModes:                   []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
 			StorageClassName:              statics.StorageClassName,
-			MountOptions: []string{
-				"tls",
-				fmt.Sprintf("accesspoint=%s", sharedVolume.Spec.AccessPointID),
-			},
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:       statics.CSIDriverName,
-					VolumeHandle: sharedVolume.Spec.FileSystemID,
+					VolumeHandle: volumeHandle,
 				},
 			},
 		},

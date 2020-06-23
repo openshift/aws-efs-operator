@@ -170,6 +170,12 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 	pve := pvEnsurable(sharedVolume)
 	pvce := pvcEnsurable(sharedVolume)
 
+	// TODO: If we just upgraded past 0.0.2, this will update the PV from old style (access point
+	// in MountOptions) to new style (access point in VolumeHandle). Which would be fine, except
+	// - I think the Update will bounce because PVs are immutable after creation. That could get
+	//   us in a hard loop.
+	// - If it doesn't, we've still got https://github.com/openshift/origin/issues/2434 which may
+	//   cause the update to wedge.
 	reqLogger.Info("Reconciling PersistentVolume", "Name", pve.GetNamespacedName().Name)
 	if err := pve.Ensure(reqLogger, r.client); err != nil {
 		// Mark Error status. This is best-effort (ignore any errors), since it's happening within
@@ -359,22 +365,34 @@ func (r *ReconcileSharedVolume) uneditSharedVolume(
 	svname := fmt.Sprintf("%s/%s", sharedVolume.Namespace, sharedVolume.Name)
 
 	// We found the corresponding PV. Peel the FS and AP IDs out of it.
-	fsid := pv.Spec.PersistentVolumeSource.CSI.VolumeHandle
-	if fsid == "" {
+	volHandle := pv.Spec.PersistentVolumeSource.CSI.VolumeHandle
+	if volHandle == "" {
 		// Let's funnel this into our recover() since it's the same class of error as e.g. nil
 		// pointer dereference. This will make it easier to handle those errors differently if
 		// we decide to do that in the future.
 		panic(fmt.Sprintf("PersistentVolume %s for SharedVolume %s has no VolumeHandle", pvname, svname))
 	}
 	var apid string
-	for _, opt := range pv.Spec.MountOptions {
-		tokens := strings.SplitN(opt, "=", 2)
-		if len(tokens) == 2 && tokens[0] == "accesspoint" {
-			apid = tokens[1]
+	// Discover the access point. We'll tolerate either the old style with the access point in the
+	// MountOptions (0.0.2 and earlier), or the new style where the VolumeHandle is colon-delimited
+	// and includes the access point as the third field.
+	tokens := strings.SplitN(volHandle, ":", 3)
+	fsid := tokens[0]
+	if len(tokens) == 1 {
+		// Access point is in MountOptions
+		for _, opt := range pv.Spec.MountOptions {
+			tokens := strings.SplitN(opt, "=", 2)
+			if len(tokens) == 2 && tokens[0] == "accesspoint" {
+				apid = tokens[1]
+			}
 		}
+	} else if len(tokens) == 3 {
+		apid = tokens[2]
+	} else {
+		panic(fmt.Sprintf("Couldn't parse VolumeHandle %q", volHandle))
 	}
 	if apid == "" {
-		// Ditto
+		// Ditto above
 		panic(fmt.Sprintf("Couldn't find Access Point ID in PersistentVolume %s for SharedVolume %s", pvname, svname))
 	}
 

@@ -304,6 +304,38 @@ func TestReconcile(t *testing.T) {
 		t.Fatalf("Expected file system ID to be reverted to %s, but got %s", fs1, sv2.Spec.FileSystemID)
 	}
 	// And we should be back to gold
+	_, pvMap, _ = validateResources(t, r.client, 2)
+
+	// Let's do that again with a "legacy" PV -- one with the access point in the MountOptions.
+	sv2.Spec.AccessPointID = ape
+	sv2.Spec.FileSystemID = fs2
+	if err = r.client.Update(ctx, sv2); err != nil {
+		t.Fatal(err)
+	}
+	pvname := fmt.Sprintf("/%s", pvNameForSharedVolume(sv2))
+	pv := pvMap[pvname]
+	pv.Spec.CSI.VolumeHandle = fs1
+	pv.Spec.MountOptions = []string{
+		"tls",
+		"accesspoint=" + apd,
+	}
+	if err = r.client.Update(ctx, pv); err != nil {
+		t.Fatal(err)
+	}
+	// This should ask to requeue so the next run through can take a greener path
+	if res, err = r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Fatalf("Expected requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
+	// There should (still) be two of each resource, but let's check the SV by hand
+	svMap, _, _ = validateResources(t, r.client, 2)
+	sv2 = svMap[fmt.Sprintf("%s/%s", nsy, svb)]
+	if sv2.Spec.AccessPointID != apd {
+		t.Fatalf("Expected access point ID to be reverted to %s, but got %s", apd, sv2.Spec.AccessPointID)
+	}
+	if sv2.Spec.FileSystemID != fs1 {
+		t.Fatalf("Expected file system ID to be reverted to %s, but got %s", fs1, sv2.Spec.FileSystemID)
+	}
+	// And we should be back to gold
 	_, pvMap, pvcMap = validateResources(t, r.client, 2)
 
 	// Now make sure changes to our managed resources are reverted.
@@ -313,8 +345,7 @@ func TestReconcile(t *testing.T) {
 		t.Fatal(err)
 	}
 	// And mung the PV
-	pvname := fmt.Sprintf("/%s", pvNameForSharedVolume(sv2))
-	pv := pvMap[pvname]
+	pv = pvMap[pvname]
 	pv.Spec.CSI = nil
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
@@ -343,11 +374,29 @@ func TestReconcile(t *testing.T) {
 	}
 	_, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	if pv.Spec.CSI.VolumeHandle != fs1 {
+	expVolHandle := fs1 + "::" + apd
+	if pv.Spec.CSI.VolumeHandle != expVolHandle {
 		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
 	}
 
-	// And again, covering the case where APID is missing
+	// And again, covering the case where the VolumeHandle is downright malformed
+	pv.Spec.CSI.VolumeHandle = fs1 + ":" + apd
+	if err = r.client.Update(ctx, pv); err != nil {
+		t.Fatal(err)
+	}
+	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
+		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
+	_, pvMap, _ = validateResources(t, r.client, 2)
+	pv = pvMap[pvname]
+	expVolHandle = fs1 + "::" + apd
+	if pv.Spec.CSI.VolumeHandle != expVolHandle {
+		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
+	}
+
+	// And again, covering the case where APID is missing from the MountOptions. To trigger this,
+	// we have to force the old style VolumeHandle.
+	pv.Spec.CSI.VolumeHandle = fs1
 	pv.Spec.MountOptions = []string{}
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
@@ -357,9 +406,13 @@ func TestReconcile(t *testing.T) {
 	}
 	svMap, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	expectedMountOpt := fmt.Sprintf("accesspoint=%s", apd)
-	if len(pv.Spec.MountOptions) != 2 || pv.Spec.MountOptions[1] != expectedMountOpt {
-		t.Fatalf("Expected PV's MountOptions to be restored, but got %v", format(pv))
+	// Since we're always using the new style for access points, the MountOptions should stay
+	// empty, and the access point should go into the VolumeHandle.
+	if pv.Spec.CSI.VolumeHandle != expVolHandle {
+		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
+	}
+	if len(pv.Spec.MountOptions) != 0 {
+		t.Fatalf("Expected no MountOptions, but got %v", format(pv))
 	}
 
 	// Test the delete path. Note that this doesn't happen by deleting the SharedVolume (yet). We
@@ -519,7 +572,7 @@ func TestUneditUpdateError(t *testing.T) {
 	pve := pvEnsurable(sv)
 	pv := pve.(*util.EnsurableImpl).Definition.(*corev1.PersistentVolume)
 	// Make this trigger the unedit path
-	pv.Spec.CSI.VolumeHandle = "abc123"
+	pv.Spec.CSI.VolumeHandle = "abc123::ap"
 
 	// The version of SharedVolume we expect to be passed to Update() will have that changed FSID
 	svUpdate := sv.DeepCopy()

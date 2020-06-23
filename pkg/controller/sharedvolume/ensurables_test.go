@@ -130,12 +130,14 @@ func TestCache(t *testing.T) {
 
 	// PVs
 	pv1 := pvEnsurable(&sharedVolume).(*util.EnsurableImpl).Definition.(*corev1.PersistentVolume)
-	if pv1.Spec.CSI.VolumeHandle != fakeFSID {
+	expVolumeHandle1 := fakeFSID + "::" + fakeAPID
+	if pv1.Spec.CSI.VolumeHandle != expVolumeHandle1 {
 		t.Fatalf("Expected PV ensurable to correspond to\nSharedVolume %v\nbut got\nPV %v",
 			format(sharedVolume), format(pv1))
 	}
+	expVolumeHandle2 := fsid2 + "::" + apid2
 	pv2 := pvEnsurable(&sv2).(*util.EnsurableImpl).Definition.(*corev1.PersistentVolume)
-	if pv2.Spec.CSI.VolumeHandle != fsid2 {
+	if pv2.Spec.CSI.VolumeHandle != expVolumeHandle2 {
 		t.Fatalf("Expected PV ensurable to correspond to\nSharedVolume %v\nbut got\nPV %v",
 			format(sv2), format(pv2))
 	}
