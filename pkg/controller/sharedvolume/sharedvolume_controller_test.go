@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
-	"openshift/aws-efs-operator/pkg/controller/statics"
 	"openshift/aws-efs-operator/pkg/fixtures"
 	"openshift/aws-efs-operator/pkg/test"
 	"openshift/aws-efs-operator/pkg/util"
@@ -338,33 +337,54 @@ func TestReconcile(t *testing.T) {
 	// And we should be back to gold
 	_, pvMap, pvcMap = validateResources(t, r.client, 2)
 
-	// Now make sure changes to our managed resources are reverted.
-	// Delete the PVC
+	// Make sure a deleted PV/PVC is restored.
 	pvcnsname := pvcNamespacedName(sv2)
 	if err = r.client.Delete(ctx, pvcMap[fmt.Sprintf("%s/%s", pvcnsname.Namespace, pvcnsname.Name)]); err != nil {
 		t.Fatal(err)
 	}
-	// And mung the PV
-	pv = pvMap[pvname]
+	if err = r.client.Delete(ctx, pvMap[pvname]); err != nil {
+		t.Fatal(err)
+	}
+	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
+		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
+	// validateResources proves the PV and PVC came back.
+	svMap, pvMap, _ = validateResources(t, r.client, 2)
+
+	// Hit some uneditSharedVolume corner cases. These will panic in uneditSharedVolume, which is
+	// recovered and spoofed as a non-error on the theory that the main Reconcile should overwrite
+	// the PV. But it won't do that, because PVs can't be edited (which means we shouldn't get here
+	// in the first place).
+
+	recoverPV := func() {
+		if err := r.client.Delete(ctx, pvMap[pvname]); err != nil {
+			t.Fatal(err)
+		}
+		if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
+			t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
+		}
+		// validateResources proves the PV came back.
+		_, pvMap, _ = validateResources(t, r.client, 2)
+		pv = pvMap[pvname]
+	}
+
+	// 1) Trigger a "real" panic where uneditSharedVolume tries to dereference CSI, which is nil.
 	pv.Spec.CSI = nil
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
 	}
-	// By having made CSI nil, we're hitting another corner case with this Reconcile: where
-	// uneditSharedVolume panics when it can't figure out the original FSID. This gets treated the
-	// same as if the PV was missing; it gets restored to its former state.
 	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 	}
-	// validateResources proves the PVC came back. Check the PV by hand
-	svMap, pvMap, _ = validateResources(t, r.client, 2)
+	_, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	// Rudimentary check
-	if pv.Spec.CSI.Driver != statics.CSIDriverName {
-		t.Fatalf("Expected PV to be restored, but got %v", format(pv))
+	// The PV didn't change
+	if pv.Spec.CSI != nil {
+		t.Fatalf("Expected PV not to be restored, but got %v", format(pv))
 	}
+	recoverPV()
 
-	// Similar, but specifically cover the case where FSID is empty
+	// 2) VolumeHandle is empty
 	pv.Spec.CSI.VolumeHandle = ""
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
@@ -374,13 +394,15 @@ func TestReconcile(t *testing.T) {
 	}
 	_, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	expVolHandle := fs1 + "::" + apd
-	if pv.Spec.CSI.VolumeHandle != expVolHandle {
-		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
+	// The PV didn't change
+	if pv.Spec.CSI.VolumeHandle != "" {
+		t.Fatalf("Expected PV's VolumeHandle not to be restored, but got %v", format(pv))
 	}
+	recoverPV()
 
-	// And again, covering the case where the VolumeHandle is downright malformed
-	pv.Spec.CSI.VolumeHandle = fs1 + ":" + apd
+	// 3) VolumeHandle is downright malformed
+	bogusVolHandle := fs1 + ":" + apd
+	pv.Spec.CSI.VolumeHandle = bogusVolHandle
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
 	}
@@ -389,13 +411,13 @@ func TestReconcile(t *testing.T) {
 	}
 	_, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	expVolHandle = fs1 + "::" + apd
-	if pv.Spec.CSI.VolumeHandle != expVolHandle {
-		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
+	if pv.Spec.CSI.VolumeHandle != bogusVolHandle {
+		t.Fatalf("Expected PV's VolumeHandle not to be restored, but got %v", format(pv))
 	}
+	recoverPV()
 
-	// And again, covering the case where APID is missing from the MountOptions. To trigger this,
-	// we have to force the old style VolumeHandle.
+	// 4) APID is missing from the MountOptions. To trigger this, we have to force the old style
+	//    VolumeHandle.
 	pv.Spec.CSI.VolumeHandle = fs1
 	pv.Spec.MountOptions = []string{}
 	if err = r.client.Update(ctx, pv); err != nil {
@@ -406,14 +428,10 @@ func TestReconcile(t *testing.T) {
 	}
 	svMap, pvMap, _ = validateResources(t, r.client, 2)
 	pv = pvMap[pvname]
-	// Since we're always using the new style for access points, the MountOptions should stay
-	// empty, and the access point should go into the VolumeHandle.
-	if pv.Spec.CSI.VolumeHandle != expVolHandle {
-		t.Fatalf("Expected PV's VolumeHandle to be restored, but got %v", format(pv))
+	if pv.Spec.CSI.VolumeHandle != fs1 || len(pv.Spec.MountOptions) != 0 {
+		t.Fatalf("Expected PV not to be restored, but got %v", format(pv))
 	}
-	if len(pv.Spec.MountOptions) != 0 {
-		t.Fatalf("Expected no MountOptions, but got %v", format(pv))
-	}
+	recoverPV()
 
 	// Test the delete path. Note that this doesn't happen by deleting the SharedVolume (yet). We
 	// need to be kubernetes here and mark the SharedVolume for deletion, wait until finalizers are

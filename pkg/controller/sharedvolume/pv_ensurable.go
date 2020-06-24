@@ -9,12 +9,8 @@ import (
 
 	"fmt"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -28,7 +24,13 @@ func pvEnsurable(sharedVolume *awsefsv1alpha1.SharedVolume) util.Ensurable {
 			ObjType:        &corev1.PersistentVolume{},
 			NamespacedName: pvNamespacedName(sharedVolume),
 			Definition:     pvDefinition(sharedVolume),
-			EqualFunc:      pvEqual,
+			// NOTE: PVs are immutable once created, so theoretically we should never encounter an
+			// event that requires an actual update. And if we did, we wouldn't be able to update
+			// anyway, so pretend the change didn't happen.
+			// The exception is an upgrade like the one from 0.0.2, where the shape of a SV-backed
+			// PV changed, meaning that if the operator notices an old-style PV, it will try to
+			// "fix" it. Which won't work. Spoofing "always equal" will avoid that.
+			EqualFunc: util.AlwaysEqual,
 		}
 	}
 	return pvBySharedVolume[key]
@@ -44,14 +46,6 @@ func pvNamespacedName(sharedVol *awsefsv1alpha1.SharedVolume) types.NamespacedNa
 func pvNameForSharedVolume(sharedVolume *awsefsv1alpha1.SharedVolume) string {
 	// Name the PV after the SharedVolume so it's easy to spot visually.
 	return fmt.Sprintf("pv-%s-%s", sharedVolume.Namespace, sharedVolume.Name)
-}
-
-func pvEqual(local, server runtime.Object) bool {
-	// k8s sets Spec.ClaimRef when binding, so doing a raw DeepEqual() on the Specs is not ideal.
-	return cmp.Equal(
-		local.(*corev1.PersistentVolume).Spec,
-		server.(*corev1.PersistentVolume).Spec,
-		cmpopts.IgnoreFields(corev1.PersistentVolumeSpec{}, "ClaimRef"))
 }
 
 func pvDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.PersistentVolume {

@@ -73,10 +73,12 @@ func TestPVEnsurable(t *testing.T) {
 	if !equal(actualDef, expectedDef) {
 		t.Fatalf("Expected defs to be equal:\n%v\n%v", actualDef, expectedDef)
 	}
-	// Now muck with something we care about
+	// Now muck with something we care about. Since we're using AlwaysEqual (see NOTE on
+	// pvEnsurable's EqualFunc), it will evaluate equal anyway.
 	actualDef.(*corev1.PersistentVolume).Spec.AccessModes[0] = corev1.ReadOnlyMany
-	if equal(actualDef, expectedDef) {
-		t.Fatalf("Expected defs not to be equal:\n%v\n%v", actualDef, expectedDef)
+	if !equal(actualDef, expectedDef) {
+		t.Fatalf("Expected defs to evaluate equal (even though they're not):\n%v\n%v",
+			format(actualDef), format(expectedDef))
 	}
 }
 
