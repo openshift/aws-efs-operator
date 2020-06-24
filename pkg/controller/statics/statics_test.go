@@ -171,7 +171,10 @@ func Test_static_GetType(t *testing.T) {
 	}
 }
 
-func Test_alwaysEqual(t *testing.T) {
+// Test_AlwaysEqual should really live in ensurable_test.go (TODO) but that will entail changing
+// the "Things that are super different" test case in some nontrivial way, since `staticResources`
+// isn't exported.
+func Test_AlwaysEqual(t *testing.T) {
 	// This is kind of silly, but...
 	type args struct {
 		local  runtime.Object
@@ -190,8 +193,8 @@ func Test_alwaysEqual(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := alwaysEqual(tt.args.local, tt.args.server); !got {
-				t.Errorf("alwaysEqual() = %v, want true", got)
+			if got := util.AlwaysEqual(tt.args.local, tt.args.server); !got {
+				t.Errorf("AlwaysEqual() = %v, want true", got)
 			}
 		})
 	}
@@ -201,23 +204,23 @@ func Test_storageClassEqual(t *testing.T) {
 	sc1 := staticResourceMap[StorageClassName].(*util.EnsurableImpl).Definition.(*storagev1.StorageClass)
 	sc2 := sc1.DeepCopy()
 
-	if !equalOtherThanMeta(sc1, sc1) {
+	if !util.EqualOtherThanMeta(sc1, sc1) {
 		t.Error("Expected object to compare equal to itself.")
 	}
 
-	if !equalOtherThanMeta(sc1, sc2) {
+	if !util.EqualOtherThanMeta(sc1, sc2) {
 		t.Errorf("Getter should always return objects that compare equal.\n%v\n%v", sc1, sc2)
 	}
 
 	// Mucking with metadata shouldn't affect equality
 	sc2.ObjectMeta.SelfLink = "/foo/bar/baz"
-	if !equalOtherThanMeta(sc1, sc2) {
+	if !util.EqualOtherThanMeta(sc1, sc2) {
 		t.Errorf("Metadata should not affect equality.\n%v\n%v", sc1, sc2)
 	}
 
 	// But these fields should
 	sc2.Provisioner = "foo"
-	if equalOtherThanMeta(sc1, sc2) {
+	if util.EqualOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of Provisioner should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 	// reset
@@ -225,7 +228,7 @@ func Test_storageClassEqual(t *testing.T) {
 
 	recycle := corev1.PersistentVolumeReclaimRecycle
 	sc2.ReclaimPolicy = &recycle
-	if equalOtherThanMeta(sc1, sc2) {
+	if util.EqualOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of ReclaimPolicy should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 	// reset
@@ -233,7 +236,7 @@ func Test_storageClassEqual(t *testing.T) {
 
 	wf1c := storagev1.VolumeBindingWaitForFirstConsumer
 	sc2.VolumeBindingMode = &wf1c
-	if equalOtherThanMeta(sc1, sc2) {
+	if util.EqualOtherThanMeta(sc1, sc2) {
 		t.Errorf("Change of VolumeBindingMode should make these unequal.\n%v\n%v", sc1, sc2)
 	}
 }
@@ -268,35 +271,35 @@ func Test_securityContextConstraintsEqual(t *testing.T) {
 	scc1 := staticResourceMap[sccName].(*util.EnsurableImpl).Definition.(*securityv1.SecurityContextConstraints)
 	scc2 := scc1.DeepCopy()
 
-	if !equalOtherThanMeta(scc1, scc1) {
+	if !util.EqualOtherThanMeta(scc1, scc1) {
 		t.Error("Expected object to compare equal to itself.")
 	}
 
-	if !equalOtherThanMeta(scc1, scc2) {
+	if !util.EqualOtherThanMeta(scc1, scc2) {
 		t.Errorf("Getter should always return objects that compare equal.\n%v\n%v", scc1, scc2)
 	}
 
 	// Mucking with metadata shouldn't affect equality
 	scc2.ObjectMeta.SelfLink = "/foo/bar/baz"
-	if !equalOtherThanMeta(scc1, scc2) {
+	if !util.EqualOtherThanMeta(scc1, scc2) {
 		t.Errorf("Metadata should not affect equality.\n%v\n%v", scc1, scc2)
 	}
 
 	// Pick a few fields to test
 	scc2.AllowHostIPC = false
-	if equalOtherThanMeta(scc1, scc2) {
+	if util.EqualOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing AllowHostIPC should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 	scc2.AllowHostIPC = true
 
 	scc2.RunAsUser.Type = securityv1.RunAsUserStrategyMustRunAs
-	if equalOtherThanMeta(scc1, scc2) {
+	if util.EqualOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing RunAsUser.Type should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 	scc2.RunAsUser.Type = securityv1.RunAsUserStrategyRunAsAny
 
 	scc2.Users = append(scc2.Users, "foo")
-	if equalOtherThanMeta(scc1, scc2) {
+	if util.EqualOtherThanMeta(scc1, scc2) {
 		t.Errorf("Changing Users should make these unequal.\n%v\n%v", scc1, scc2)
 	}
 }

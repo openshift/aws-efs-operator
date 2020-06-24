@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -138,6 +139,19 @@ func (e EnsurableImpl) Delete(log logr.Logger, client crclient.Client) error {
 
 	// Cool.
 	return nil
+}
+
+// AlwaysEqual is a convenience implementation of Ensurable.equalFunc for objects that can't change
+// (in any significant way)
+func AlwaysEqual(local, server runtime.Object) bool {
+	return true
+}
+
+// EqualOtherThanMeta is a DeepEquals that ignores ObjectMeta and TypeMeta.
+// Use when a DeepEqual on Spec won't work, e.g. when the meat of the object is at the top level
+// and/or there _is_ no Spec.
+func EqualOtherThanMeta(local, server runtime.Object) bool {
+	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}, metav1.TypeMeta{}))
 }
 
 func (e EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime.Object) {
