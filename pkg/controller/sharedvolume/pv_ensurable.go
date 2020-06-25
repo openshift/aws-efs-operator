@@ -27,9 +27,10 @@ func pvEnsurable(sharedVolume *awsefsv1alpha1.SharedVolume) util.Ensurable {
 			// NOTE: PVs are immutable once created, so theoretically we should never encounter an
 			// event that requires an actual update. And if we did, we wouldn't be able to update
 			// anyway, so pretend the change didn't happen.
-			// The exception is an upgrade like the one from 0.0.2, where the shape of a SV-backed
+			// The exception is an upgrade like this one [1], where the shape of a SV-backed
 			// PV changed, meaning that if the operator notices an old-style PV, it will try to
 			// "fix" it. Which won't work. Spoofing "always equal" will avoid that.
+			// [1] https://github.com/openshift/aws-efs-operator/pull/17/commits/bfcfcda1158510a28cc253a76c74fd03edd20a4f#diff-b7b6189fad2ed163b0a2ff5f7f22ad50L73-L81
 			EqualFunc: util.AlwaysEqual,
 		}
 	}

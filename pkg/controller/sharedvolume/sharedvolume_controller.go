@@ -170,12 +170,6 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 	pve := pvEnsurable(sharedVolume)
 	pvce := pvcEnsurable(sharedVolume)
 
-	// TODO: If we just upgraded past 0.0.2, this will update the PV from old style (access point
-	// in MountOptions) to new style (access point in VolumeHandle). Which would be fine, except
-	// - I think the Update will bounce because PVs are immutable after creation. That could get
-	//   us in a hard loop.
-	// - If it doesn't, we've still got https://github.com/openshift/origin/issues/2434 which may
-	//   cause the update to wedge.
 	reqLogger.Info("Reconciling PersistentVolume", "Name", pve.GetNamespacedName().Name)
 	if err := pve.Ensure(reqLogger, r.client); err != nil {
 		// Mark Error status. This is best-effort (ignore any errors), since it's happening within
@@ -374,8 +368,9 @@ func (r *ReconcileSharedVolume) uneditSharedVolume(
 	}
 	var apid string
 	// Discover the access point. We'll tolerate either the old style with the access point in the
-	// MountOptions (0.0.2 and earlier), or the new style where the VolumeHandle is colon-delimited
+	// MountOptions (before [1]), or the new style where the VolumeHandle is colon-delimited
 	// and includes the access point as the third field.
+	// [1] https://github.com/openshift/aws-efs-operator/pull/17/commits/bfcfcda1158510a28cc253a76c74fd03edd20a4f#diff-b7b6189fad2ed163b0a2ff5f7f22ad50L73-L81
 	tokens := strings.SplitN(volHandle, ":", 3)
 	fsid := tokens[0]
 	if len(tokens) == 1 {
