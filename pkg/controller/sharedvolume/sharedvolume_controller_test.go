@@ -121,8 +121,7 @@ func getResources(t *testing.T, client crclient.Client) (svMapType, pvMapType, p
 // For further inspection by the caller, we return three maps, keyed by "$namespace/$name",
 // to the SharedVolume, PersistentVolume, and PVC resources.
 func validateResources(
-	t *testing.T, client crclient.Client, expectedCount int) (
-	map[string]*awsefsv1alpha1.SharedVolume, map[string]*corev1.PersistentVolume, map[string]*corev1.PersistentVolumeClaim) {
+	t *testing.T, client crclient.Client, expectedCount int) (svMapType, pvMapType, pvcMapType) {
 
 	svMap, pvMap, pvcMap := getResources(t, client)
 
@@ -597,7 +596,7 @@ func TestFinalizerUpdateError(t *testing.T) {
 // `rtype` (which should be an instance of either *PersistentVolume or *PersistentVolumeClaim) for
 // the SharedVolume `sv` is accessed, `ensurable` is returned instead of whatever you would
 // otherwise expect. This should be used (sparingly - it's a hack) to "mock" the behavior of a PV
-// or PVC Ensurable in a test flow that is otherwise out of our control, like and end-to-end
+// or PVC Ensurable in a test flow that is otherwise out of our control, like an end-to-end
 // Reconcile with a fake (as opposed to mocked) client.
 func hijackEnsurable(rtype runtime.Object, sv *awsefsv1alpha1.SharedVolume, ensurable util.Ensurable) {
 	// Replace the value in the global cache.
@@ -703,56 +702,232 @@ func TestEnsureFails(t *testing.T) {
 	}
 }
 
-// TestDeleteFail hits the `handleDelete` code path where an Ensurable's Delete() fails.
-func TestDeleteFail(t *testing.T) {
-	// TODO: Make this more end-to-end-y
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// fakeClientWithCustomErrors overrides some of the fake client's methods, allowing them to (not
+// actually run and) throw specific errors. Use it like this:
+//   realFakeClient := NewFakeClient(...)
+//   c := fakeClientWithCustomErrors{
+//       Client: realFakeClient,
+//       DeleteBehavior: []error{nil, fmt.Errorf("Error on the second call"), nil}
+//       UpdateBehavior: []error(fmt.Errorf("Error on the first call"))
+//   }
+//   c.Delete(...) // runs the real fake Delete
+//   c.Delete(...) // skips the real fake Delete and returns the first error
+//   c.Delete(...) // runs the real fake Delete
+//   c.Delete(...) // runs the real fake Delete, even though we ran off the end of the array
+//   c.Update(...) // returns the error
+type fakeClientWithCustomErrors struct {
+	// The "Real" fake client
+	crclient.Client
+	// Entries in this list affect each successive call to Delete(). Using `nil` causes the "real"
+	// Delete to be called. Using a non-nil error causes the "real" Delete to be skipped, and that
+	// error to be returned instead.
+	DeleteBehavior []error
+	// Private tracker of calls to Delete, used to determine which DeleteBehavior to use.
+	numDeleteCalls int
+	// Ditto Update
+	UpdateBehavior []error
+	// Private tracker of calls to Update, used to determine which UpdateBehavior to use.
+	numUpdateCalls int
+	// TODO(efried): Add the other methods. Propose upstream.
+}
 
-	r, client := mockReconciler(ctrl)
-	logger := fixtures.NewMockLogger(ctrl)
+func clientOverride(behavior []error, numCalls int) error {
+	if len(behavior) > numCalls {
+		return behavior[numCalls] // which might be nil
+	}
+	// If we ran off the end, assume default behavior
+	return nil
+}
+
+// Delete overrides the fake client's Delete, conditionally bypassing it and returning an error instead.
+func (f *fakeClientWithCustomErrors) Delete(ctx context.Context, obj runtime.Object, opts ...crclient.DeleteOption) error {
+	// Always increment the call count, but not until we're done.
+	defer func() { f.numDeleteCalls++ }()
+	if err := clientOverride(f.DeleteBehavior, f.numDeleteCalls); err != nil {
+		return err
+	}
+	// Otherwise run the real Delete
+	return f.Client.Delete(ctx, obj, opts...)
+}
+
+// Update overrides the fake client's Update, conditionally bypassing it and returning an error instead.
+func (f *fakeClientWithCustomErrors) Update(ctx context.Context, obj runtime.Object, opts ...crclient.UpdateOption) error {
+	// Always increment the call count, but not until we're done.
+	defer func() { f.numUpdateCalls++ }()
+	if err := clientOverride(f.UpdateBehavior, f.numUpdateCalls); err != nil {
+		return err
+	}
+	// Otherwise run the real Update
+	return f.Client.Update(ctx, obj, opts...)
+}
+
+// TestHandleDeleteFails hits unusual failure paths in `handleDelete`
+func TestHandleDeleteFails(t *testing.T) {
+	// Make sure the caches are cleared from other tests
+	pvBySharedVolume = make(map[string]util.Ensurable)
+	pvcBySharedVolume = make(map[string]util.Ensurable)
+
+	r := fakeReconciler()
+	// We'll use this later to wrap the fake client to make it error where we want it
+	realFakeClient := r.client
 
 	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "sv",
-			Namespace:  "proj1",
-			Finalizers: []string{svFinalizer},
+			Name:      "sv",
+			Namespace: "proj1",
+		},
+		Spec: awsefsv1alpha1.SharedVolumeSpec{
+			AccessPointID: "fs-abc123abc123",
+			FileSystemID:  "fs-123abc",
 		},
 	}
 
-	// "Mock" the PV and PVC Ensurables
-	mockPVEnsurable := fixtures.NewMockEnsurable(ctrl)
-	hijackEnsurable(&corev1.PersistentVolume{}, sv, mockPVEnsurable)
-	mockPVCEnsurable := fixtures.NewMockEnsurable(ctrl)
-	hijackEnsurable(&corev1.PersistentVolumeClaim{}, sv, mockPVCEnsurable)
-
-	// We'll run through this three times...
-	gomock.InOrder(
-		// The first time we'll make the PVC Ensurable's Delete fail
-		logger.EXPECT().Info("SharedVolume marked for deletion. Finalizing..."),
-		mockPVCEnsurable.EXPECT().Delete(logger, client).Return(fixtures.NotFound),
-		// The second time it succeeds...
-		logger.EXPECT().Info("SharedVolume marked for deletion. Finalizing..."),
-		mockPVCEnsurable.EXPECT().Delete(logger, client).Return(nil),
-		// ...so we can get to the PV Ensurable's Delete, which we'll make fail
-		mockPVEnsurable.EXPECT().Delete(logger, client).Return(fixtures.AlreadyExists),
-		// The third time through, both of the Delete()s should succeed...
-		logger.EXPECT().Info("SharedVolume marked for deletion. Finalizing..."),
-		mockPVCEnsurable.EXPECT().Delete(logger, client).Return(nil),
-		mockPVEnsurable.EXPECT().Delete(logger, client).Return(nil),
-		// ...so we can get to the Update, which we'll make fail.
-		client.EXPECT().Update(ctx, sv).Return(fixtures.NotFound),
-		logger.EXPECT().Error(fixtures.NotFound, "Failed to remove finalizer"),
-	)
-
-	if err := r.handleDelete(logger, sv); err != fixtures.NotFound {
-		t.Fatalf("Expected NotFound but got %v", err)
+	if err := r.client.Create(ctx, sv); err != nil {
+		t.Fatal(err)
 	}
-	if err := r.handleDelete(logger, sv); err != fixtures.AlreadyExists {
-		t.Fatalf("Expected AlreadyExists but got %v", err)
+
+	// It takes three Reconciles to get to steady state. This sequence is validated thoroughly in
+	// TestReconcile, so just rough it up here.
+	req := makeRequest(t, sv)
+	r.Reconcile(req)
+	r.Reconcile(req)
+	r.Reconcile(req)
+	// This proves our SV/PV/PVC are all present and accounted for
+	svMap, _, _ := validateResources(t, r.client, 1)
+	sv = svMap["proj1/sv"]
+
+	// Let's also make sure the caches are warm
+	svk := svKey(sv)
+	if _, ok := pvcBySharedVolume[svk]; !ok {
+		t.Fatal("Expected the PVC cache to be warm")
 	}
-	if err := r.handleDelete(logger, sv); err != fixtures.NotFound {
-		t.Fatalf("Expected NotFound but got %v", err)
+	if _, ok := pvBySharedVolume[svk]; !ok {
+		t.Fatal("Expected the PV cache to be warm")
+	}
+
+	// Now mark the SV for deletion to trigger the handleDelete path
+	delTime := metav1.Now()
+	sv.DeletionTimestamp = &delTime
+	if err := r.client.Update(ctx, sv); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1) Make the PVC Ensurable's Delete fail
+	r.client = &fakeClientWithCustomErrors{
+		Client: realFakeClient,
+		DeleteBehavior: []error{
+			// This has to be an error other than NotFound to make EnsurableImpl.Delete return it.
+			// Beyond that, it doesn't much matter.
+			fixtures.AlreadyExists,
+		},
+	}
+	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
+		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
+	}
+	// The PVC should be gone from the cache, but the PV should not
+	if _, ok := pvcBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PVC cache to be clear")
+	}
+	if _, ok := pvBySharedVolume[svk]; !ok {
+		t.Fatal("Expected the PV cache to be warm")
+	}
+	// All three resources should still be there
+	svMap, pvMap, pvcMap := getResources(t, r.client)
+	if len(svMap) != 1 || len(pvMap) != 1 || len(pvcMap) != 1 {
+		t.Fatalf("Expected one each of SVs, PVs, and PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
+	}
+	sv = svMap["proj1/sv"]
+	// The finalizer should still be there
+	if len(sv.GetFinalizers()) != 1 {
+		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
+	}
+
+	// 2) Make the PV Ensurable's Delete fail (after the PVC Ensurable's Delete succeeds)
+	r.client = &fakeClientWithCustomErrors{
+		Client: realFakeClient,
+		DeleteBehavior: []error{
+			// The first Delete is the PVC's
+			nil,
+			// The second is the PV's
+			fixtures.AlreadyExists,
+		},
+	}
+	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
+		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
+	}
+	// Both the PVC and the PV should be gone from the cache
+	if _, ok := pvcBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PVC cache to be clear")
+	}
+	if _, ok := pvBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PV cache to be clear")
+	}
+	// But only the PVC got deleted
+	svMap, pvMap, pvcMap = getResources(t, r.client)
+	if len(svMap) != 1 || len(pvMap) != 1 || len(pvcMap) != 0 {
+		t.Fatalf("Expected one SVs and PV and no PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
+	}
+	sv = svMap["proj1/sv"]
+	// And the finalizer should still be there
+	if len(sv.GetFinalizers()) != 1 {
+		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
+	}
+
+	// 3) Make the SV's Update (to clear the finalizer) fail.
+	//    Note that when we start this sub-case, the PVC is already gone, so this also exercises
+	//    the idempotency of that deletion.
+	r.client = &fakeClientWithCustomErrors{
+		Client: realFakeClient,
+		UpdateBehavior: []error{
+			// The SV's Update() to clear the finalizer is the first (and only) Update().
+			// There's a .Status().Update() before it, but that's different.
+			fixtures.AlreadyExists,
+		},
+	}
+	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
+		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
+	}
+	// Both the PVC and the PV should be gone from the cache
+	if _, ok := pvcBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PVC cache to be clear")
+	}
+	if _, ok := pvBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PV cache to be clear")
+	}
+	// And both got deleted
+	svMap, pvMap, pvcMap = getResources(t, r.client)
+	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
+		t.Fatalf("Expected one SVs and no PVs or PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
+	}
+	sv = svMap["proj1/sv"]
+	// And the finalizer should still be there
+	if len(sv.GetFinalizers()) != 1 {
+		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
+	}
+
+	// 4) Finally, let everything run through.
+	//    We start off in a messy state where the PV and PVC are already gone, so this isn't
+	//    *exactly* a green path. More... chartreuse.
+	r.client = realFakeClient
+	if res, err := r.Reconcile(req); res != test.NullResult || err != nil {
+		t.Fatalf("Expected null result, no error, but got\nresult: %v\nerr: %v", res, err)
+	}
+	// Both the PVC and the PV should be gone from the cache
+	if _, ok := pvcBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PVC cache to be clear")
+	}
+	if _, ok := pvBySharedVolume[svk]; ok {
+		t.Fatal("Expected the PV cache to be clear")
+	}
+	// And both got deleted
+	svMap, pvMap, pvcMap = getResources(t, r.client)
+	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
+		t.Fatalf("Expected one SVs and no PVs or PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
+	}
+	sv = svMap["proj1/sv"]
+	// And now the finalizer is gone
+	if len(sv.GetFinalizers()) != 0 {
+		t.Fatalf("Expected finalizer to be gone but found %v", sv.GetFinalizers())
 	}
 }
 

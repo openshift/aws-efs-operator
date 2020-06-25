@@ -217,19 +217,25 @@ func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *a
 	}
 	logger.Info("SharedVolume marked for deletion. Finalizing...")
 
-	// Order matters here. Delete the PVC first, then the PV.
-	for _, e := range []util.Ensurable{
-		pvcEnsurable(sharedVolume),
-		pvEnsurable(sharedVolume),
-	} {
-		// Note that Delete only cares about the NamespacedName of each Ensurable. This matters
-		// because it's theoretically possible that the guts of the PV and/or PVC are out of sync
-		// with what's in the SharedVolume. We specifically don't care if that's true because it's
-		// all going away.
-		if err := e.Delete(logger, r.client); err != nil {
-			// Delete did the logging
-			return err
-		}
+	// Note that Delete only cares about the NamespacedName of each Ensurable. This matters
+	// because it's theoretically possible that the guts of the PV and/or PVC are out of sync
+	// with what's in the SharedVolume. We specifically don't care if that's true because it's
+	// all going away.
+	// TODO(efried): Move cache cleaning logic into pv[c]_ensurable.go... somehow.
+	// Order matters here. Delete the PVC first...
+	e := pvcEnsurable(sharedVolume)
+	k := svKey(sharedVolume)
+	defer delete(pvcBySharedVolume, k)
+	if err := e.Delete(logger, r.client); err != nil {
+		// Delete did the logging
+		return err
+	}
+	// ...then the PV
+	e = pvEnsurable(sharedVolume)
+	defer delete(pvBySharedVolume, k)
+	if err := e.Delete(logger, r.client); err != nil {
+		// Delete did the logging
+		return err
 	}
 
 	// We're done. Remove our finalizer and let the SharedVolume deletion proceed.
