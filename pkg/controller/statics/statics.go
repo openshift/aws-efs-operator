@@ -136,14 +136,14 @@ func init() {
 
 func loadDefTemplate(receiver runtime.Object, defFile string) {
 	if err := yaml.Unmarshal(MustAsset(filepath.Join("defs", defFile)), receiver); err != nil {
-		panic("Couldn't load " + defFile + ": " + err.Error())
+		panic(fmt.Sprintf("Couldn't load %s: %s", defFile, err.Error()))
 	}
 }
 
 func getNSName(definition runtime.Object) types.NamespacedName {
 	nsname, err := crclient.ObjectKeyFromObject(definition)
 	if err != nil {
-		panic("Couldn't extract NamespacedName from definition: " + err.Error())
+		panic(fmt.Sprintf("Couldn't extract NamespacedName from definition: %s", err.Error()))
 	}
 	return nsname
 }
@@ -173,12 +173,12 @@ func discoverNamespace() {
 	// TODO(efried): Is there a better / more accepted / canonical way to do this?
 	apiConfig, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
 	if err != nil {
-		panic("Couldn't discover cluster config: " + err.Error())
+		panic(fmt.Sprintf("Couldn't discover cluster config: %s", err.Error()))
 	}
 	clientConfig := clientcmd.NewDefaultClientConfig(*apiConfig, &clientcmd.ConfigOverrides{})
 	namespaceName, _, err = clientConfig.Namespace()
 	if err != nil {
-		panic("Couldn't get namespace from cluster config: " + err.Error())
+		panic(fmt.Sprintf("Couldn't get namespace from cluster config: %s", err.Error()))
 	}
 	glog.Info("Discovered namespace from config.", "namespace", namespaceName)
 }

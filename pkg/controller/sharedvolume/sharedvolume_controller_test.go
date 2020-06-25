@@ -316,7 +316,7 @@ func TestReconcile(t *testing.T) {
 	pv.Spec.CSI.VolumeHandle = fs1
 	pv.Spec.MountOptions = []string{
 		"tls",
-		"accesspoint=" + apd,
+		fmt.Sprintf("accesspoint=%s", apd),
 	}
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
@@ -401,7 +401,7 @@ func TestReconcile(t *testing.T) {
 	recoverPV()
 
 	// 3) VolumeHandle is downright malformed
-	bogusVolHandle := fs1 + ":" + apd
+	bogusVolHandle := fmt.Sprintf("%s:%s", fs1, apd)
 	pv.Spec.CSI.VolumeHandle = bogusVolHandle
 	if err = r.client.Update(ctx, pv); err != nil {
 		t.Fatal(err)
@@ -622,7 +622,7 @@ func TestUneditUpdateError(t *testing.T) {
 type matchFinalizer struct{}
 
 func (m matchFinalizer) String() string {
-	return "has finalizer " + svFinalizer
+	return fmt.Sprintf("has finalizer %s", svFinalizer)
 }
 func (m matchFinalizer) Matches(x interface{}) bool {
 	finalizers := x.(metav1.Object).GetFinalizers()
