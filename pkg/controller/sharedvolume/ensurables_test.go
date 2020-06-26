@@ -3,6 +3,7 @@ package sharedvolume
 // Test cases for the PV and PVC Ensurables
 
 import (
+	"fmt"
 	awsefsv1alpha1 "openshift/aws-efs-operator/pkg/apis/awsefs/v1alpha1"
 	"openshift/aws-efs-operator/pkg/test"
 	util "openshift/aws-efs-operator/pkg/util"
@@ -73,10 +74,12 @@ func TestPVEnsurable(t *testing.T) {
 	if !equal(actualDef, expectedDef) {
 		t.Fatalf("Expected defs to be equal:\n%v\n%v", actualDef, expectedDef)
 	}
-	// Now muck with something we care about
+	// Now muck with something we care about. Since we're using AlwaysEqual (see NOTE on
+	// pvEnsurable's EqualFunc), it will evaluate equal anyway.
 	actualDef.(*corev1.PersistentVolume).Spec.AccessModes[0] = corev1.ReadOnlyMany
-	if equal(actualDef, expectedDef) {
-		t.Fatalf("Expected defs not to be equal:\n%v\n%v", actualDef, expectedDef)
+	if !equal(actualDef, expectedDef) {
+		t.Fatalf("Expected defs to evaluate equal (even though they're not):\n%v\n%v",
+			format(actualDef), format(expectedDef))
 	}
 }
 
@@ -130,12 +133,14 @@ func TestCache(t *testing.T) {
 
 	// PVs
 	pv1 := pvEnsurable(&sharedVolume).(*util.EnsurableImpl).Definition.(*corev1.PersistentVolume)
-	if pv1.Spec.CSI.VolumeHandle != fakeFSID {
+	expVolumeHandle1 := fmt.Sprintf("%s::%s", fakeFSID, fakeAPID)
+	if pv1.Spec.CSI.VolumeHandle != expVolumeHandle1 {
 		t.Fatalf("Expected PV ensurable to correspond to\nSharedVolume %v\nbut got\nPV %v",
 			format(sharedVolume), format(pv1))
 	}
+	expVolumeHandle2 := fmt.Sprintf("%s::%s", fsid2, apid2)
 	pv2 := pvEnsurable(&sv2).(*util.EnsurableImpl).Definition.(*corev1.PersistentVolume)
-	if pv2.Spec.CSI.VolumeHandle != fsid2 {
+	if pv2.Spec.CSI.VolumeHandle != expVolumeHandle2 {
 		t.Fatalf("Expected PV ensurable to correspond to\nSharedVolume %v\nbut got\nPV %v",
 			format(sv2), format(pv2))
 	}

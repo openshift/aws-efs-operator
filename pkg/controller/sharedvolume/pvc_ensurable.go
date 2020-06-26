@@ -26,6 +26,11 @@ func pvcEnsurable(sharedVolume *awsefsv1alpha1.SharedVolume) util.Ensurable {
 			ObjType:        &corev1.PersistentVolumeClaim{},
 			NamespacedName: pvcNamespacedName(sharedVolume),
 			Definition:     pvcDefinition(sharedVolume),
+			// PVCs are (almost*) immutable once created, so doing an equals check is probably
+			// always a no-op, and we could use AlwaysEqual here instead. But it's harmless for
+			// now, so leave it.
+			// * except for the size, if supported, which in the case of EFS it's not,
+			//   and wouldn't make sense anyway, because elastic.
 			EqualFunc: func(local, server runtime.Object) bool {
 				return reflect.DeepEqual(
 					local.(*corev1.PersistentVolumeClaim).Spec,

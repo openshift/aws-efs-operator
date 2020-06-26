@@ -359,22 +359,35 @@ func (r *ReconcileSharedVolume) uneditSharedVolume(
 	svname := fmt.Sprintf("%s/%s", sharedVolume.Namespace, sharedVolume.Name)
 
 	// We found the corresponding PV. Peel the FS and AP IDs out of it.
-	fsid := pv.Spec.PersistentVolumeSource.CSI.VolumeHandle
-	if fsid == "" {
+	volHandle := pv.Spec.PersistentVolumeSource.CSI.VolumeHandle
+	if volHandle == "" {
 		// Let's funnel this into our recover() since it's the same class of error as e.g. nil
 		// pointer dereference. This will make it easier to handle those errors differently if
 		// we decide to do that in the future.
 		panic(fmt.Sprintf("PersistentVolume %s for SharedVolume %s has no VolumeHandle", pvname, svname))
 	}
 	var apid string
-	for _, opt := range pv.Spec.MountOptions {
-		tokens := strings.SplitN(opt, "=", 2)
-		if len(tokens) == 2 && tokens[0] == "accesspoint" {
-			apid = tokens[1]
+	// Discover the access point. We'll tolerate either the old style with the access point in the
+	// MountOptions (before [1]), or the new style where the VolumeHandle is colon-delimited
+	// and includes the access point as the third field.
+	// [1] https://github.com/openshift/aws-efs-operator/pull/17/commits/bfcfcda1158510a28cc253a76c74fd03edd20a4f#diff-b7b6189fad2ed163b0a2ff5f7f22ad50L73-L81
+	tokens := strings.SplitN(volHandle, ":", 3)
+	fsid := tokens[0]
+	if len(tokens) == 1 {
+		// Access point is in MountOptions
+		for _, opt := range pv.Spec.MountOptions {
+			tokens := strings.SplitN(opt, "=", 2)
+			if len(tokens) == 2 && tokens[0] == "accesspoint" {
+				apid = tokens[1]
+			}
 		}
+	} else if len(tokens) == 3 {
+		apid = tokens[2]
+	} else {
+		panic(fmt.Sprintf("Couldn't parse VolumeHandle %q", volHandle))
 	}
 	if apid == "" {
-		// Ditto
+		// Ditto above
 		panic(fmt.Sprintf("Couldn't find Access Point ID in PersistentVolume %s for SharedVolume %s", pvname, svname))
 	}
 

@@ -106,6 +106,8 @@ spec:
       # DELTA: Removed
       # priorityClassName: system-node-critical
       nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
         # DELTA: only deploy this on worker nodes
         # NOTE: This will hit infra nodes as well.
         node-role.kubernetes.io/worker: ''
@@ -137,6 +139,8 @@ spec:
               mountPath: /csi
             - name: efs-state-dir
               mountPath: /var/run/efs
+            - name: efs-utils-config
+              mountPath: /etc/amazon/efs
           ports:
             - containerPort: 9809
               hostPort: 9809
@@ -151,7 +155,7 @@ spec:
             periodSeconds: 2
             failureThreshold: 5
         - name: csi-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
           # DELTA: Always pull
           imagePullPolicy: Always
           args:
@@ -174,7 +178,7 @@ spec:
               mountPath: /registration
         - name: liveness-probe
           imagePullPolicy: Always
-          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          image: quay.io/k8scsi/livenessprobe:v2.0.0
           args:
             - --csi-address=/csi/csi.sock
             - --health-port=9809
@@ -197,6 +201,10 @@ spec:
         - name: efs-state-dir
           hostPath:
             path: /var/run/efs
+            type: DirectoryOrCreate
+        - name: efs-utils-config
+          hostPath:
+            path: /etc/amazon/efs
             type: DirectoryOrCreate
 `)
 

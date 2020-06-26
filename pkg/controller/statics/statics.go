@@ -13,15 +13,12 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	securityv1 "github.com/openshift/api/security/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
@@ -101,14 +98,14 @@ func init() {
 			ObjType:        &corev1.ServiceAccount{},
 			NamespacedName: getNSName(saDef),
 			Definition:     saDef,
-			EqualFunc:      alwaysEqual,
+			EqualFunc:      util.AlwaysEqual,
 		},
 		&util.EnsurableImpl{
 			ObjType:        &securityv1.SecurityContextConstraints{},
 			NamespacedName: getNSName(sccDef),
 			Definition:     sccDef,
 			// SCC has no Spec; the meat is at the top level
-			EqualFunc: equalOtherThanMeta,
+			EqualFunc: util.EqualOtherThanMeta,
 		},
 		&util.EnsurableImpl{
 			ObjType:        &appsv1.DaemonSet{},
@@ -127,7 +124,7 @@ func init() {
 			NamespacedName: getNSName(scDef),
 			Definition:     scDef,
 			// StorageClass has no Spec; the meat is at the top level
-			EqualFunc: equalOtherThanMeta,
+			EqualFunc: util.EqualOtherThanMeta,
 		},
 	}
 
@@ -139,14 +136,14 @@ func init() {
 
 func loadDefTemplate(receiver runtime.Object, defFile string) {
 	if err := yaml.Unmarshal(MustAsset(filepath.Join("defs", defFile)), receiver); err != nil {
-		panic("Couldn't load " + defFile + ": " + err.Error())
+		panic(fmt.Sprintf("Couldn't load %s: %s", defFile, err.Error()))
 	}
 }
 
 func getNSName(definition runtime.Object) types.NamespacedName {
 	nsname, err := crclient.ObjectKeyFromObject(definition)
 	if err != nil {
-		panic("Couldn't extract NamespacedName from definition: " + err.Error())
+		panic(fmt.Sprintf("Couldn't extract NamespacedName from definition: %s", err.Error()))
 	}
 	return nsname
 }
@@ -176,12 +173,12 @@ func discoverNamespace() {
 	// TODO(efried): Is there a better / more accepted / canonical way to do this?
 	apiConfig, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
 	if err != nil {
-		panic("Couldn't discover cluster config: " + err.Error())
+		panic(fmt.Sprintf("Couldn't discover cluster config: %s", err.Error()))
 	}
 	clientConfig := clientcmd.NewDefaultClientConfig(*apiConfig, &clientcmd.ConfigOverrides{})
 	namespaceName, _, err = clientConfig.Namespace()
 	if err != nil {
-		panic("Couldn't get namespace from cluster config: " + err.Error())
+		panic(fmt.Sprintf("Couldn't get namespace from cluster config: %s", err.Error()))
 	}
 	glog.Info("Discovered namespace from config.", "namespace", namespaceName)
 }
@@ -209,19 +206,6 @@ func EnsureStatics(log logr.Logger, client crclient.Client) error {
 		return fmt.Errorf("Encountered %d error(s) ensuring statics", errcount)
 	}
 	return nil
-}
-
-// alwaysEqual is a convenience implementation of static.equalFunc for objects that can't change
-// (in any significant way)
-func alwaysEqual(local, server runtime.Object) bool {
-	return true
-}
-
-// equalOtherThanMeta is a DeepEquals that ignores ObjectMeta and TypeMeta.
-// Use when a DeepEqual on Spec won't work, e.g. when the meat of the object is at the top level
-// and/or there _is_ no Spec.
-func equalOtherThanMeta(local, server runtime.Object) bool {
-	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}, metav1.TypeMeta{}))
 }
 
 func csiDriverEqual(local, server runtime.Object) bool {
