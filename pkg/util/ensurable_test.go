@@ -7,6 +7,7 @@ import (
 	fx "openshift/aws-efs-operator/pkg/fixtures"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/go-cmp/cmp"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,8 +113,10 @@ func TestEnsureExistsNoUpdate(t *testing.T) {
 	// Test the equal() path where versions are equal. This causes equal() to return true,
 	// triggering "no updated needed".
 	// By not defining EqualFunc, we prove that it doesn't get called.
-	m.getTypeAndServerObj.(metav1.Object).SetResourceVersion("abc")
 	m.getterAndCachedObj.(metav1.Object).SetResourceVersion("abc")
+	m.getTypeAndServerObj.(metav1.Object).SetResourceVersion("abc")
+	// Change the server object (unrealistically) so we can prove it's the one that gets cached
+	m.getTypeAndServerObj.(*corev1.Pod).Spec.HostNetwork = true
 
 	gomock.InOrder(
 		m.client.EXPECT().Get(todo, nsname, m.getTypeAndServerObj).Return(nil),
@@ -125,8 +128,8 @@ func TestEnsureExistsNoUpdate(t *testing.T) {
 		t.Errorf("Ensure(): expected nil, got %v", err)
 	}
 	// The latestVersion got overwritten, but with the same value
-	if m.ensurable.latestVersion != m.getterAndCachedObj {
-		t.Fatalf("Bogus latestVersion.\nExpected: %v\nGot:     %v", m.getterAndCachedObj, m.ensurable.latestVersion)
+	if diff := cmp.Diff(m.ensurable.latestVersion, m.getTypeAndServerObj); diff != "" {
+		t.Fatalf("Bogus latestVersion:\n%s", diff)
 	}
 }
 

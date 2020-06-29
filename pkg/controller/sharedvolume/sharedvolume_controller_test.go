@@ -359,6 +359,7 @@ func TestReconcile(t *testing.T) {
 		if err := r.client.Delete(ctx, pvMap[pvname]); err != nil {
 			t.Fatal(err)
 		}
+		delete(pvBySharedVolume, svKey(svMap[fmt.Sprintf("%s/%s", nsy, svb)]))
 		if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 			t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 		}
@@ -773,65 +774,6 @@ func TestEnsureFails(t *testing.T) {
 	}
 }
 
-// fakeClientWithCustomErrors overrides some of the fake client's methods, allowing them to (not
-// actually run and) throw specific errors. Use it like this:
-//   realFakeClient := NewFakeClient(...)
-//   c := fakeClientWithCustomErrors{
-//       Client: realFakeClient,
-//       DeleteBehavior: []error{nil, fmt.Errorf("Error on the second call"), nil}
-//       UpdateBehavior: []error(fmt.Errorf("Error on the first call"))
-//   }
-//   c.Delete(...) // runs the real fake Delete
-//   c.Delete(...) // skips the real fake Delete and returns the first error
-//   c.Delete(...) // runs the real fake Delete
-//   c.Delete(...) // runs the real fake Delete, even though we ran off the end of the array
-//   c.Update(...) // returns the error
-type fakeClientWithCustomErrors struct {
-	// The "Real" fake client
-	crclient.Client
-	// Entries in this list affect each successive call to Delete(). Using `nil` causes the "real"
-	// Delete to be called. Using a non-nil error causes the "real" Delete to be skipped, and that
-	// error to be returned instead.
-	DeleteBehavior []error
-	// Private tracker of calls to Delete, used to determine which DeleteBehavior to use.
-	numDeleteCalls int
-	// Ditto Update
-	UpdateBehavior []error
-	// Private tracker of calls to Update, used to determine which UpdateBehavior to use.
-	numUpdateCalls int
-	// TODO(efried): Add the other methods. Propose upstream.
-}
-
-func clientOverride(behavior []error, numCalls int) error {
-	if len(behavior) > numCalls {
-		return behavior[numCalls] // which might be nil
-	}
-	// If we ran off the end, assume default behavior
-	return nil
-}
-
-// Delete overrides the fake client's Delete, conditionally bypassing it and returning an error instead.
-func (f *fakeClientWithCustomErrors) Delete(ctx context.Context, obj runtime.Object, opts ...crclient.DeleteOption) error {
-	// Always increment the call count, but not until we're done.
-	defer func() { f.numDeleteCalls++ }()
-	if err := clientOverride(f.DeleteBehavior, f.numDeleteCalls); err != nil {
-		return err
-	}
-	// Otherwise run the real Delete
-	return f.Client.Delete(ctx, obj, opts...)
-}
-
-// Update overrides the fake client's Update, conditionally bypassing it and returning an error instead.
-func (f *fakeClientWithCustomErrors) Update(ctx context.Context, obj runtime.Object, opts ...crclient.UpdateOption) error {
-	// Always increment the call count, but not until we're done.
-	defer func() { f.numUpdateCalls++ }()
-	if err := clientOverride(f.UpdateBehavior, f.numUpdateCalls); err != nil {
-		return err
-	}
-	// Otherwise run the real Update
-	return f.Client.Update(ctx, obj, opts...)
-}
-
 // TestHandleDeleteFails hits unusual failure paths in `handleDelete`
 func TestHandleDeleteFails(t *testing.T) {
 	// Make sure the caches are cleared from other tests
@@ -884,7 +826,7 @@ func TestHandleDeleteFails(t *testing.T) {
 	}
 
 	// 1) Make the PVC Ensurable's Delete fail
-	r.client = &fakeClientWithCustomErrors{
+	r.client = &test.FakeClientWithCustomErrors{
 		Client: realFakeClient,
 		DeleteBehavior: []error{
 			// This has to be an error other than NotFound to make EnsurableImpl.Delete return it.
@@ -914,7 +856,7 @@ func TestHandleDeleteFails(t *testing.T) {
 	}
 
 	// 2) Make the PV Ensurable's Delete fail (after the PVC Ensurable's Delete succeeds)
-	r.client = &fakeClientWithCustomErrors{
+	r.client = &test.FakeClientWithCustomErrors{
 		Client: realFakeClient,
 		DeleteBehavior: []error{
 			// The first Delete is the PVC's
@@ -947,7 +889,7 @@ func TestHandleDeleteFails(t *testing.T) {
 	// 3) Make the SV's Update (to clear the finalizer) fail.
 	//    Note that when we start this sub-case, the PVC is already gone, so this also exercises
 	//    the idempotency of that deletion.
-	r.client = &fakeClientWithCustomErrors{
+	r.client = &test.FakeClientWithCustomErrors{
 		Client: realFakeClient,
 		UpdateBehavior: []error{
 			// The SV's Update() to clear the finalizer is the first (and only) Update().

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -139,6 +140,12 @@ func main() {
 
 	// Add OpenShift security apis to scheme
 	if err := securityv1.Install(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Need this for the CustomResourceDefinition Kind
+	if err := apiextensions.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

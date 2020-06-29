@@ -7,13 +7,15 @@ import (
 	"openshift/aws-efs-operator/pkg/util"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/golang/mock/gomock"
 	securityv1 "github.com/openshift/api/security/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -27,16 +29,72 @@ import (
 func setup() (logr.Logger, *ReconcileStatics) {
 	logf.SetLogger(logf.ZapLogger(true))
 
+	// OpenShift types need to be registered explicitly
+	scheme.Scheme.AddKnownTypes(securityv1.SchemeGroupVersion, &securityv1.SecurityContextConstraints{})
+	// And so do extensions
+	scheme.Scheme.AddKnownTypes(apiextensions.SchemeGroupVersion, &apiextensions.CustomResourceDefinition{})
+
 	client := fake.NewFakeClientWithScheme(scheme.Scheme)
+
+	// The SharedVolume CRD has to exist for the reconciler to work
+	client.Create(context.TODO(), &apiextensions.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: svCRDName,
+		},
+	})
 
 	return logf.Log.Logger, &ReconcileStatics{client: client, scheme: scheme.Scheme}
 }
 
+// TestStartup simulates operator startup by creating the statics before the CRD is discovered,
+// then reconciling and proving that the statics are updated with the proper OwnerReferences.
+func TestStartup(t *testing.T) {
+	ctx := context.TODO()
+
+	logger, r := setup()
+
+	// This is how statics are bootstrapped on operator startup
+	if err := EnsureStatics(logger, r.client); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, staticResource := range staticResources {
+		obj := staticResource.GetType()
+		nsname := staticResource.GetNamespacedName()
+		// The static was created
+		if err := r.client.Get(ctx, nsname, obj); err != nil {
+			t.Fatal(err)
+		}
+		// But shouldn't have OwnerReferences set
+		if orefs := obj.(metav1.Object).GetOwnerReferences(); len(orefs) != 0 {
+			t.Fatalf("Expected no OwnerReferences but got %v", orefs)
+		}
+		// Until we reconcile
+		res, err := r.Reconcile(reconcile.Request{NamespacedName: nsname})
+		if err != nil {
+			t.Fatalf("Didn't expect an error, but got %v", err)
+		}
+		if !reflect.DeepEqual(res, test.NullResult) {
+			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
+		}
+		// And then there should be one
+		if err := r.client.Get(ctx, nsname, obj); err != nil {
+			t.Fatal(err)
+		}
+		orefs := obj.(metav1.Object).GetOwnerReferences()
+		if len(orefs) != 1 {
+			t.Fatalf("Expected one OwnerReference but got %v", orefs)
+		}
+		// Sanity check the OwnerReference
+		if orefs[0].Name != svCRDName {
+			t.Fatalf("Expected the OwnerReference to have Name=%q but got\n%v", svCRDName, orefs[0])
+		}
+	}
+
+}
+
 func TestReconcile(t *testing.T) {
 	checkNumStatics(t)
-
-	// OpenShift types need to be registered explicitly
-	scheme.Scheme.AddKnownTypes(securityv1.SchemeGroupVersion, &securityv1.SecurityContextConstraints{})
 
 	ctx := context.TODO()
 
@@ -52,8 +110,10 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// We'll use these later
-	var dsStatic util.Ensurable
-	var resources map[string]runtime.Object
+	var (
+		dsStatic  util.Ensurable
+		resources map[string]runtime.Object
+	)
 
 	// Now let's run the reconciler for each of our tracked resources.
 	for _, staticResource := range staticResources {
@@ -95,6 +155,76 @@ func TestReconcile(t *testing.T) {
 	checkStatics(t, r.client)
 }
 
+// TestReconcileCRDVariants tests the code paths where the CRD is in other-than-green states.
+func TestReconcileCRDVariants(t *testing.T) {
+	_, r := setup()
+
+	var (
+		crd *apiextensions.CustomResourceDefinition
+		err error
+	)
+
+	// 1) We catch the CRD while it's being deleted
+	if crd, err = discoverCRD(r.client); err != nil {
+		t.Fatal(err)
+	}
+	now := metav1.Now()
+	crd.SetDeletionTimestamp(&now)
+	if err := r.client.Update(context.TODO(), crd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Overkill, but prove this behaves the same for any static
+	for _, staticResource := range staticResources {
+		nsname := staticResource.GetNamespacedName()
+		res, err := r.Reconcile(reconcile.Request{NamespacedName: nsname})
+		if err != nil {
+			t.Fatalf("Expected no error reconciling %v but got %v", nsname, err)
+		}
+		if !reflect.DeepEqual(res, test.NullResult) {
+			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
+		}
+	}
+
+	// 2) The CRD has already been deleted
+	if err := r.client.Delete(context.TODO(), crd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same again
+	for _, staticResource := range staticResources {
+		nsname := staticResource.GetNamespacedName()
+		res, err := r.Reconcile(reconcile.Request{NamespacedName: nsname})
+		if err != nil {
+			t.Fatalf("Expected no error reconciling %v but got %v", nsname, err)
+		}
+		if !reflect.DeepEqual(res, test.NullResult) {
+			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
+		}
+	}
+
+	// 3) Error retrieving the CRD
+	realclient := r.client
+	fcwce := &test.FakeClientWithCustomErrors{
+		Client:      realclient,
+		GetBehavior: make([]error, len(staticResources)),
+	}
+	r.client = fcwce
+	for i, staticResource := range staticResources {
+		// Set our fake to error on this reconcile.
+		fcwce.GetBehavior[i] = fixtures.AlreadyExists
+		nsname := staticResource.GetNamespacedName()
+		res, err := r.Reconcile(reconcile.Request{NamespacedName: nsname})
+		if err != nil {
+			t.Fatalf("Expected no error reconciling %v but got %v", nsname, err)
+		}
+		if !res.Requeue || res.RequeueAfter != time.Millisecond*1000 {
+			t.Fatalf("Unexpected result. Expected: requeue after 1s; Got: %v", res)
+		}
+	}
+
+}
+
 // TestReconcileUnexpected tests the code path where a resource we don't care about somehow makes it past the filter
 func TestReconcileUnexpected(t *testing.T) {
 	_, r := setup()
@@ -110,25 +240,20 @@ func TestReconcileUnexpected(t *testing.T) {
 
 // TestReconcileEnsureFails tests the path where an Ensure fails during a Reconcile
 func TestReconcileEnsureFails(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	_, r := setup()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	client := fixtures.NewMockClient(ctrl)
-
-	// Not realistic, we're just contriving a way to make Ensure fail
-	theError := fixtures.AlreadyExists
-
-	// Don't really care about the args
-	client.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(theError)
+	fcwce := &test.FakeClientWithCustomErrors{
+		Client: r.client,
+		// The first GET is for the CRD. Make the second (for the ensurable) fail.
+		GetBehavior: []error{nil, fixtures.AlreadyExists},
+	}
 
 	// Any resource is fine, just making sure we actually try to Ensure it
 	staticResource := staticResources[3]
 
-	r := ReconcileStatics{client: client, scheme: scheme.Scheme}
+	rs := ReconcileStatics{client: fcwce, scheme: scheme.Scheme}
 
-	res, err := r.Reconcile(reconcile.Request{NamespacedName: staticResource.GetNamespacedName()})
+	res, err := rs.Reconcile(reconcile.Request{NamespacedName: staticResource.GetNamespacedName()})
 
 	if err == nil {
 		t.Fatal("Expected an error")

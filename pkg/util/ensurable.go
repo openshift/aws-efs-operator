@@ -27,6 +27,8 @@ type Ensurable interface {
 	// GetNamespacedName returns the `NamespacedName` for the resource. This can be used to identify
 	// the Ensurable associated with a `reconcile.Request`.
 	GetNamespacedName() types.NamespacedName
+	// SetOwner sets the OwnerReferences field to a list of one element, the argument.
+	SetOwner(*metav1.OwnerReference)
 	// Ensure creates an Ensurable resource if it doesn't already exist, or updates it if it exists
 	// and differs from the gold standard.
 	Ensure(logr.Logger, crclient.Client) error
@@ -40,11 +42,12 @@ type EnsurableImpl struct {
 	NamespacedName types.NamespacedName
 	Definition     runtime.Object
 	EqualFunc      func(local, server runtime.Object) bool
+	owner          *metav1.OwnerReference
 	latestVersion  runtime.Object
 }
 
 // GetType implements Ensurable.
-func (e EnsurableImpl) GetType() runtime.Object {
+func (e *EnsurableImpl) GetType() runtime.Object {
 	// To make this "safe", we return a _copy_ of e.objType. The caller is expecting to be able to
 	// use this e.g. to receive a real object from the server, and we don't want that data going into our
 	// EnsurableImpl instance. For one thing, maybe the _next_ caller is expecting it to be empty. For another,
@@ -53,12 +56,17 @@ func (e EnsurableImpl) GetType() runtime.Object {
 }
 
 // GetNamespacedName implements Ensurable.
-func (e EnsurableImpl) GetNamespacedName() types.NamespacedName {
+func (e *EnsurableImpl) GetNamespacedName() types.NamespacedName {
 	return e.NamespacedName
 }
 
+// SetOwner implements Ensurable.
+func (e *EnsurableImpl) SetOwner(owner *metav1.OwnerReference) {
+	e.owner = owner
+}
+
 // Ensure implements Ensurable.
-func (e EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
+func (e *EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
 	rname := e.GetNamespacedName()
 	foundObj := e.GetType()
 	if err := client.Get(context.TODO(), rname, foundObj); err != nil {
@@ -111,7 +119,7 @@ func (e EnsurableImpl) Ensure(log logr.Logger, client crclient.Client) error {
 }
 
 // Delete implements Ensurable
-func (e EnsurableImpl) Delete(log logr.Logger, client crclient.Client) error {
+func (e *EnsurableImpl) Delete(log logr.Logger, client crclient.Client) error {
 	// Let's clear the cache in case the object needs to be recreated at some point
 	e.latestVersion = nil
 
@@ -154,7 +162,7 @@ func EqualOtherThanMeta(local, server runtime.Object) bool {
 	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}, metav1.TypeMeta{}))
 }
 
-func (e EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime.Object) {
+func (e *EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime.Object) {
 	// If we cached one, use it, because it's not only right, it's complete
 	def := e.latestVersion
 	if def == nil {
@@ -162,6 +170,14 @@ func (e EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime
 		def = e.Definition
 		// Make sure this object triggers our watcher
 		MakeMeCare(def)
+	}
+	// Make sure the owner reference is set, if applicable.
+	// TODO(efried): It's a bit convoluted to have to do this here rather than within the above
+	// condition. It's tightly coupled with the `equal` path that checks for the reference, and
+	// the fact that we have a chicken/egg problem with statics being created on startup, before
+	// we can count on the CRD existing.
+	if e.owner != nil {
+		def.(metav1.Object).SetOwnerReferences([]metav1.OwnerReference{*e.owner})
 	}
 	if serverObj != nil && e.equal(def, serverObj) {
 		// If they're "equal", return the foundObj, because there are cases where it's newer or more complete
@@ -180,7 +196,12 @@ func (e EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime
 // mean they're 100% equal in all fields and values -- just the ones we care about.
 // Importantly, the `local` object is either the `Definition` or pulled from the
 // cache; and the `server` object is the one just retrieved from the server.
-func (e EnsurableImpl) equal(local, server runtime.Object) bool {
+func (e *EnsurableImpl) equal(local, server runtime.Object) bool {
+	// The server object must have its owner reference set, if applicable
+	// NOTE(efried): Assumes we're the only one mucking with owner references
+	if e.owner != nil && len(server.(metav1.Object).GetOwnerReferences()) != 1 {
+		return false
+	}
 	// If these objects are versioned, and the versions are equal, there's no need to check further.
 	if VersionsEqual(local, server) {
 		return true
