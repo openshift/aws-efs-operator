@@ -180,14 +180,13 @@ func TestReconcile(t *testing.T) {
 		ape = "fsap-2222222e"
 	)
 	var (
-		sv1, sv2   *awsefsv1alpha1.SharedVolume
-		svMap      svMapType
-		pvMap      pvMapType
-		pvcMap     pvcMapType
-		req        reconcile.Request
-		res        reconcile.Result
-		err        error
-		finalizers []string
+		sv1, sv2 *awsefsv1alpha1.SharedVolume
+		svMap    svMapType
+		pvMap    pvMapType
+		pvcMap   pvcMapType
+		req      reconcile.Request
+		res      reconcile.Result
+		err      error
 	)
 	r := fakeReconciler()
 
@@ -210,25 +209,8 @@ func TestReconcile(t *testing.T) {
 		t.Fatal(err)
 	}
 	req = makeRequest(t, sv1)
-	// Since the SV is new, the first reconcile loop just adds our finalizer and requeues
-	if res, err = r.Reconcile(req); res != test.RequeueResult || err != nil {
-		t.Fatalf("Expected requeue, no error; got\nresult: %v\nerr: %v", res, err)
-	}
-	// Make sure the finalizer got added
-	if err = r.client.Get(ctx, req.NamespacedName, sv1); err != nil {
-		t.Fatal(err)
-	}
-	finalizers = sv1.GetFinalizers()
-	if len(finalizers) != 1 || finalizers[0] != svFinalizer {
-		t.Fatalf("Didn't find our finalizer;\nExpected: {%s}\nGot:     %v", svFinalizer, finalizers)
-	}
-	// Our SharedVolume should be the only thing that exists
-	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
-		t.Fatalf("Expected only our SharedVolume resource, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
-			svMap, pvMap, pvcMap)
-	}
-	// And The second time through we update the status. First make sure it's unset
+	// Since the SV is new, the first reconcile loop just updates the status.
+	// First make sure it's unset
 	if sv1.Status.Phase != "" || sv1.Status.ClaimRef.Name != "" {
 		t.Fatalf("Expected uninitialized Status, but got %v", sv1.Status)
 	}
@@ -275,7 +257,6 @@ func TestReconcile(t *testing.T) {
 	}
 	r.client.Create(ctx, sv2)
 	req = makeRequest(t, sv2)
-	r.Reconcile(req)
 	r.Reconcile(req)
 	r.Reconcile(req)
 	svMap, _, _ = validateResources(t, r.client, 2)
@@ -434,8 +415,7 @@ func TestReconcile(t *testing.T) {
 	recoverPV()
 
 	// Test the delete path. Note that this doesn't happen by deleting the SharedVolume (yet). We
-	// need to be kubernetes here and mark the SharedVolume for deletion, wait until finalizers are
-	// gone, and *then* delete it.
+	// need to be kubernetes here and mark the SharedVolume for deletion.
 	// This doesn't actually need a real timestamp
 	delTime := metav1.Now()
 	sv2 = svMap[fmt.Sprintf("%s/%s", nsy, svb)]
@@ -446,39 +426,44 @@ func TestReconcile(t *testing.T) {
 	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 	}
-	// The PV and PVC should be gone, but the SV is still there
+	// The only effect was to update the status. (In real life, deleting the SV will automatically
+	// delete the PV and PVC because it owns them.)
 	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 2 || len(pvMap) != 1 || len(pvcMap) != 1 {
-		t.Fatalf("Expected two SharedVolume resources and on PV & PVC, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
+	if len(svMap) != 2 || len(pvMap) != 2 || len(pvcMap) != 2 {
+		t.Fatalf("Expected two SharedVolumes, PVs, and PVCs, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
 			svMap, pvMap, pvcMap)
 	}
-	// The finalizer ought to be gone from our SharedVolume now
-	if finalizers = svMap[fmt.Sprintf("%s/%s", nsy, svb)].GetFinalizers(); len(finalizers) != 0 {
-		t.Fatalf("Expected finalizers to be gone, but got %v", finalizers)
+	sv2 = svMap[fmt.Sprintf("%s/%s", nsy, svb)]
+	if sv2.Status.Phase != awsefsv1alpha1.SharedVolumeDeleting {
+		t.Fatalf("Expected SharedVolume Phase to be %s but got %s", awsefsv1alpha1.SharedVolumeDeleting, sv2.Status.Phase)
 	}
 	// Another reconcile at this stage should be a no-op
 	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 	}
 	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 2 || len(pvMap) != 1 || len(pvcMap) != 1 {
-		t.Fatalf("Expected two SharedVolume resources and on PV & PVC, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
+	if len(svMap) != 2 || len(pvMap) != 2 || len(pvcMap) != 2 {
+		t.Fatalf("Expected two SharedVolumes, PVs, and PVCs, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
 			svMap, pvMap, pvcMap)
 	}
 	sv2 = svMap[fmt.Sprintf("%s/%s", nsy, svb)]
-	if finalizers = sv2.GetFinalizers(); len(finalizers) != 0 {
-		t.Fatalf("Expected finalizers to be gone, but got %v", finalizers)
+	if sv2.Status.Phase != awsefsv1alpha1.SharedVolumeDeleting {
+		t.Fatalf("Expected SharedVolume Phase to be %s but got %s", awsefsv1alpha1.SharedVolumeDeleting, sv2.Status.Phase)
 	}
 	// Delete the SharedVolume for real
 	if err = r.client.Delete(ctx, sv2); err != nil {
 		t.Fatal(err)
 	}
-	validateResources(t, r.client, 1)
 	// This reconcile ought to hit our "deleted out of band" path, which is a no-op.
 	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 	}
-	validateResources(t, r.client, 1)
+	// The PV and PVC are still around (again, IRL k8s would have deleted them)
+	svMap, pvMap, pvcMap = getResources(t, r.client)
+	if len(svMap) != 1 || len(pvMap) != 2 || len(pvcMap) != 2 {
+		t.Fatalf("Expected one SharedVolume resource and two PV/PVC pairs, but got\nSharedVolumes: %s\nPVs: %s\nPVCs: %s",
+			svMap, pvMap, pvcMap)
+	}
 }
 
 // TestReconcileUnexpected makes sure the reconciler doesn't freak out if it gets a request for a
@@ -618,52 +603,6 @@ func TestUneditUpdateError(t *testing.T) {
 
 }
 
-// TODO: This is kind of goofy -- is there not a better way to define a simple Matcher inline?
-type matchFinalizer struct{}
-
-func (m matchFinalizer) String() string {
-	return fmt.Sprintf("has finalizer %s", svFinalizer)
-}
-func (m matchFinalizer) Matches(x interface{}) bool {
-	finalizers := x.(metav1.Object).GetFinalizers()
-	for _, f := range finalizers {
-		if f == svFinalizer {
-			return true
-		}
-	}
-	return false
-}
-
-// TestFinalizerUpdateError covers the path where we fail to update the SharedVolume with
-// the finalizer.
-func TestFinalizerUpdateError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	r, client := mockReconciler(ctrl)
-
-	sv := &awsefsv1alpha1.SharedVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "bar",
-		},
-	}
-
-	gomock.InOrder(
-		// First the reconciler gets the SharedVolume
-		client.EXPECT().Get(ctx, gomock.Any(), &awsefsv1alpha1.SharedVolume{}).Return(nil),
-		// uneditSharedVolume checks for the PV. We'll say it's 404 to make unedit return quick.
-		client.EXPECT().Get(ctx, gomock.Any(), &corev1.PersistentVolume{}).Return(fixtures.NotFound),
-		// Now we add the finalizer and try to update; trigger the error there.
-		client.EXPECT().Update(ctx, matchFinalizer{}).Return(fixtures.NotFound),
-	)
-
-	if res, err := r.Reconcile(makeRequest(t, sv)); res != test.NullResult || err != fixtures.NotFound {
-		t.Fatalf("Expected no requeue and an error, but got\nresult: %v\nerr: %v", res, err)
-	}
-
-}
-
 // hijackEnsurable makes it so that the next time the ensurable corresponding to the resource type
 // `rtype` (which should be an instance of either *PersistentVolume or *PersistentVolumeClaim) for
 // the SharedVolume `sv` is accessed, `ensurable` is returned instead of whatever you would
@@ -705,9 +644,7 @@ func TestEnsureFails(t *testing.T) {
 	}
 	req := makeRequest(t, sv)
 
-	// First Reconcile sets the finalizer
-	r.Reconcile(req)
-	// Second initializes the Status
+	// First Reconcile initializes the Status
 	r.Reconcile(req)
 
 	svMap, pvMap, pvcMap := getResources(t, r.client)
@@ -774,176 +711,6 @@ func TestEnsureFails(t *testing.T) {
 	}
 }
 
-// TestHandleDeleteFails hits unusual failure paths in `handleDelete`
-func TestHandleDeleteFails(t *testing.T) {
-	// Make sure the caches are cleared from other tests
-	pvBySharedVolume = make(map[string]util.Ensurable)
-	pvcBySharedVolume = make(map[string]util.Ensurable)
-
-	r := fakeReconciler()
-	// We'll use this later to wrap the fake client to make it error where we want it
-	realFakeClient := r.client
-
-	sv := &awsefsv1alpha1.SharedVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sv",
-			Namespace: "proj1",
-		},
-		Spec: awsefsv1alpha1.SharedVolumeSpec{
-			AccessPointID: "fs-abc123abc123",
-			FileSystemID:  "fs-123abc",
-		},
-	}
-
-	if err := r.client.Create(ctx, sv); err != nil {
-		t.Fatal(err)
-	}
-
-	// It takes three Reconciles to get to steady state. This sequence is validated thoroughly in
-	// TestReconcile, so just rough it up here.
-	req := makeRequest(t, sv)
-	r.Reconcile(req)
-	r.Reconcile(req)
-	r.Reconcile(req)
-	// This proves our SV/PV/PVC are all present and accounted for
-	svMap, _, _ := validateResources(t, r.client, 1)
-	sv = svMap["proj1/sv"]
-
-	// Let's also make sure the caches are warm
-	svk := svKey(sv)
-	if _, ok := pvcBySharedVolume[svk]; !ok {
-		t.Fatal("Expected the PVC cache to be warm")
-	}
-	if _, ok := pvBySharedVolume[svk]; !ok {
-		t.Fatal("Expected the PV cache to be warm")
-	}
-
-	// Now mark the SV for deletion to trigger the handleDelete path
-	delTime := metav1.Now()
-	sv.DeletionTimestamp = &delTime
-	if err := r.client.Update(ctx, sv); err != nil {
-		t.Fatal(err)
-	}
-
-	// 1) Make the PVC Ensurable's Delete fail
-	r.client = &test.FakeClientWithCustomErrors{
-		Client: realFakeClient,
-		DeleteBehavior: []error{
-			// This has to be an error other than NotFound to make EnsurableImpl.Delete return it.
-			// Beyond that, it doesn't much matter.
-			fixtures.AlreadyExists,
-		},
-	}
-	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
-		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
-	}
-	// The PVC should be gone from the cache, but the PV should not
-	if _, ok := pvcBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PVC cache to be clear")
-	}
-	if _, ok := pvBySharedVolume[svk]; !ok {
-		t.Fatal("Expected the PV cache to be warm")
-	}
-	// All three resources should still be there
-	svMap, pvMap, pvcMap := getResources(t, r.client)
-	if len(svMap) != 1 || len(pvMap) != 1 || len(pvcMap) != 1 {
-		t.Fatalf("Expected one each of SVs, PVs, and PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
-	}
-	sv = svMap["proj1/sv"]
-	// The finalizer should still be there
-	if len(sv.GetFinalizers()) != 1 {
-		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
-	}
-
-	// 2) Make the PV Ensurable's Delete fail (after the PVC Ensurable's Delete succeeds)
-	r.client = &test.FakeClientWithCustomErrors{
-		Client: realFakeClient,
-		DeleteBehavior: []error{
-			// The first Delete is the PVC's
-			nil,
-			// The second is the PV's
-			fixtures.AlreadyExists,
-		},
-	}
-	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
-		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
-	}
-	// Both the PVC and the PV should be gone from the cache
-	if _, ok := pvcBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PVC cache to be clear")
-	}
-	if _, ok := pvBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PV cache to be clear")
-	}
-	// But only the PVC got deleted
-	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 1 || len(pvMap) != 1 || len(pvcMap) != 0 {
-		t.Fatalf("Expected one SVs and PV and no PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
-	}
-	sv = svMap["proj1/sv"]
-	// And the finalizer should still be there
-	if len(sv.GetFinalizers()) != 1 {
-		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
-	}
-
-	// 3) Make the SV's Update (to clear the finalizer) fail.
-	//    Note that when we start this sub-case, the PVC is already gone, so this also exercises
-	//    the idempotency of that deletion.
-	r.client = &test.FakeClientWithCustomErrors{
-		Client: realFakeClient,
-		UpdateBehavior: []error{
-			// The SV's Update() to clear the finalizer is the first (and only) Update().
-			// There's a .Status().Update() before it, but that's different.
-			fixtures.AlreadyExists,
-		},
-	}
-	if res, err := r.Reconcile(req); res != test.NullResult || err != fixtures.AlreadyExists {
-		t.Fatalf("Expected null result, AlreadyExists error, but got\nresult: %v\nerr: %v", res, err)
-	}
-	// Both the PVC and the PV should be gone from the cache
-	if _, ok := pvcBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PVC cache to be clear")
-	}
-	if _, ok := pvBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PV cache to be clear")
-	}
-	// And both got deleted
-	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
-		t.Fatalf("Expected one SVs and no PVs or PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
-	}
-	sv = svMap["proj1/sv"]
-	// And the finalizer should still be there
-	if len(sv.GetFinalizers()) != 1 {
-		t.Fatalf("Expected 1 finalizer but found %v", sv.GetFinalizers())
-	}
-
-	// 4) Finally, let everything run through.
-	//    We start off in a messy state where the PV and PVC are already gone, so this isn't
-	//    *exactly* a green path. More... chartreuse.
-	r.client = realFakeClient
-	if res, err := r.Reconcile(req); res != test.NullResult || err != nil {
-		t.Fatalf("Expected null result, no error, but got\nresult: %v\nerr: %v", res, err)
-	}
-	// Both the PVC and the PV should be gone from the cache
-	if _, ok := pvcBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PVC cache to be clear")
-	}
-	if _, ok := pvBySharedVolume[svk]; ok {
-		t.Fatal("Expected the PV cache to be clear")
-	}
-	// And both got deleted
-	svMap, pvMap, pvcMap = getResources(t, r.client)
-	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
-		t.Fatalf("Expected one SVs and no PVs or PVCs, but got:\nSVs: %s\nPVs: %s\nPVCs: %s", svMap, pvMap, pvcMap)
-	}
-	sv = svMap["proj1/sv"]
-	// And now the finalizer is gone
-	if len(sv.GetFinalizers()) != 0 {
-		t.Fatalf("Expected finalizer to be gone but found %v", sv.GetFinalizers())
-	}
-}
-
 // TestUpdateStatusFail covers the `updateStatus` path where the Update fails.
 func TestUpdateStatusFail(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -954,9 +721,8 @@ func TestUpdateStatusFail(t *testing.T) {
 
 	sv := &awsefsv1alpha1.SharedVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "sv",
-			Namespace:  "proj1",
-			Finalizers: []string{svFinalizer},
+			Name:      "sv",
+			Namespace: "proj1",
 		},
 		Status: awsefsv1alpha1.SharedVolumeStatus{
 			Phase: awsefsv1alpha1.SharedVolumePending,

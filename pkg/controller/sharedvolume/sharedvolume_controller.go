@@ -13,11 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/kubelet/util/sliceutils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,8 +26,7 @@ import (
 
 const (
 	// TODO: Is there a lib const for this somewhere?
-	pvcKind     = "PersistentVolumeClaim"
-	svFinalizer = "finalizer.awsefs.managed.openshift.io"
+	pvcKind = "PersistentVolumeClaim"
 )
 
 var log = logf.Log.WithName("controller_sharedvolume")
@@ -121,8 +118,13 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 
 	// Deleting?
 	if sharedVolume.GetDeletionTimestamp() != nil {
+		// Out of band deletion should be pretty quick, and we don't have finalizers (the PV/PVC
+		// pair are deleted by virtue of being owned by the SV) so it is quite unlikely that we'll
+		// even get here, or that the status we set will ever be seen. If we even manage to set
+		// the status -- the SV is likely to already be gone by the time our status update hits
+		// the wire. So ignore errors on that and just succeed.
 		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeDeleting, "")
-		return reconcile.Result{}, r.handleDelete(reqLogger, sharedVolume)
+		return reconcile.Result{}, nil
 	}
 
 	// Try to detect whether the SharedVolume got updated bogusly, and revert it.
@@ -140,17 +142,6 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 	/////
 	// CREATE/UPDATE
 	/////
-
-	// Make sure our finalizer is registered before we start doing things that will need it
-	if updated, err := r.ensureFinalizer(reqLogger, sharedVolume); err != nil {
-		// If that didn't work, don't continue; requeue and let the next iteration try to fix things.
-		return reconcile.Result{}, err
-	} else if updated {
-		// If we pushed a change, it's going to trigger another reconcile.
-		// Let that happen and do the rest of our work then.
-		// Make sure it happens by forcing a requeue -- the controller is supposed to collapse duplicates.
-		return reconcile.Result{Requeue: true}, nil
-	}
 
 	// If we never set the status, it means this SharedVolume is new, and we'll be creating the
 	// associated resources.
@@ -193,58 +184,6 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 
 	// If we got this far, the PV/PVC are good (as far as we can tell).
 	return reconcile.Result{}, r.markReady(reqLogger, sharedVolume, pvcnsname)
-}
-
-// ensureFinalizer makes sure the `sharedVolume` has our finalizer registered.
-// The `bool` return indicates whether an update was pushed to the server.
-func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) (bool, error) {
-	if sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
-		return false, nil
-	}
-	logger.Info("Registering finalizer")
-	controllerutil.AddFinalizer(sharedVolume, svFinalizer)
-	if err := r.client.Update(context.TODO(), sharedVolume); err != nil {
-		logger.Error(err, "Failed to register finalizer")
-		return false, err
-	}
-	return true, nil
-}
-
-func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) error {
-	if !sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
-		// Nothing to do
-		return nil
-	}
-	logger.Info("SharedVolume marked for deletion. Finalizing...")
-
-	// Note that Delete only cares about the NamespacedName of each Ensurable. This matters
-	// because it's theoretically possible that the guts of the PV and/or PVC are out of sync
-	// with what's in the SharedVolume. We specifically don't care if that's true because it's
-	// all going away.
-	// TODO(efried): Move cache cleaning logic into pv[c]_ensurable.go... somehow.
-	// Order matters here. Delete the PVC first...
-	e := pvcEnsurable(sharedVolume)
-	k := svKey(sharedVolume)
-	defer delete(pvcBySharedVolume, k)
-	if err := e.Delete(logger, r.client); err != nil {
-		// Delete did the logging
-		return err
-	}
-	// ...then the PV
-	e = pvEnsurable(sharedVolume)
-	defer delete(pvBySharedVolume, k)
-	if err := e.Delete(logger, r.client); err != nil {
-		// Delete did the logging
-		return err
-	}
-
-	// We're done. Remove our finalizer and let the SharedVolume deletion proceed.
-	controllerutil.RemoveFinalizer(sharedVolume, svFinalizer)
-	if err := r.client.Update(context.TODO(), sharedVolume); err != nil {
-		logger.Error(err, "Failed to remove finalizer")
-		return err
-	}
-	return nil
 }
 
 // markStatus tries to update the SharedVolume's Status.Phase if not already `phase`, and the

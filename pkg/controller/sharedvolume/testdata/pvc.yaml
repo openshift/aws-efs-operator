@@ -4,6 +4,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-my-shared-volume
   namespace: project1
+  ownerReferences:
+    - name: my-shared-volume
 spec:
   accessModes:
     - ReadWriteMany

@@ -55,6 +55,10 @@ func pvDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.PersistentV
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pvNameForSharedVolume(sharedVolume),
+			// Make the PV owned by the SV so it gets deleted automatically
+			OwnerReferences: []metav1.OwnerReference{
+				sharedVolume.CreateOwnerReference(),
+			},
 		},
 		Spec: corev1.PersistentVolumeSpec{
 			Capacity: corev1.ResourceList{
