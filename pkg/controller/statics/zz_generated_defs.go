@@ -121,7 +121,8 @@ spec:
           # DELTA: fq image
           # TODO(efried): Pin to a release
           #  https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/152
-          image: registry.hub.docker.com/amazon/aws-efs-csi-driver:latest
+          # For now, freeze to a known working commit tag
+          image: registry.hub.docker.com/amazon/aws-efs-csi-driver:778131e
           # DELTA: Always pull
           imagePullPolicy: Always
           args:
@@ -139,8 +140,6 @@ spec:
               mountPath: /csi
             - name: efs-state-dir
               mountPath: /var/run/efs
-            - name: efs-utils-config
-              mountPath: /etc/amazon/efs
           ports:
             - containerPort: 9809
               hostPort: 9809
@@ -201,10 +200,6 @@ spec:
         - name: efs-state-dir
           hostPath:
             path: /var/run/efs
-            type: DirectoryOrCreate
-        - name: efs-utils-config
-          hostPath:
-            path: /etc/amazon/efs
             type: DirectoryOrCreate
 `)
 
