@@ -57,6 +57,10 @@ func pvcDefinition(sharedVolume *awsefsv1alpha1.SharedVolume) *corev1.Persistent
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nsname.Name,
 			Namespace: nsname.Namespace,
+			// Make the PVC owned by the SV so it gets deleted automatically
+			OwnerReferences: []metav1.OwnerReference{
+				sharedVolume.CreateOwnerReference(),
+			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},

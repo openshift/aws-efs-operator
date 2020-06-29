@@ -3,6 +3,8 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: pv-project1-my-shared-volume
+  ownerReferences:
+    - name: my-shared-volume
 spec:
   capacity:
     storage: 1Gi
