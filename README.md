@@ -17,7 +17,8 @@ the same access point by pods in different namespaces.
 You can create `SharedVolume`s specifying *different access points* to create distinct data stores.
 
 ## Installing
-TODO
+This operator is available via OperatorHub.
+More detailed information can be found [here](https://access.redhat.com/articles/5025181).
 
 ## Uninstalling
 TODO (don't forget about manual cleanup of statics)
@@ -34,8 +35,7 @@ Create a separate [access point](https://docs.aws.amazon.com/efs/latest/ug/creat
 distinct data store you wish to access from your cluster. Be sure to configure ownership and permissions that
 will allow read and/or write access by your pod's `uid`/`gid` as desired.
 
-**Note**: Until [this driver issue](https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/167) is resolved,
-access points must be backed by separate EFS file systems if they are to be used from the same pod.
+Access points need not be backed by separate EFS file systems.
 
 ### Working with `SharedVolume` resources
 
@@ -186,11 +186,6 @@ can leave it in an unusable state, even if the operator is able to resurrect the
 
 The only supported way to delete a `PersistentVolumeClaim` (or `PersistentVolume`) associated with a `SharedVolume`
 is to delete the `SharedVolume` and let the operator do the rest.
-
-### Separate access points, separate file systems
-
-Until [this driver issue](https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/167) is resolved,
-access points must be backed by separate EFS file systems if they are to be used from the same pod.
 
 ## Under the hood
 
