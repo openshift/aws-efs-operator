@@ -21,8 +21,7 @@ This operator is available via OperatorHub.
 More detailed information can be found [here](https://access.redhat.com/articles/5025181).
 
 ## Uninstalling
-1. Uninstall via OperatorHub
-2. Manually delete the `efs-csi-scc` SecurityContextConstraints (see [below](#securitycontextconstraints-must-be-deleted-manually))
+Uninstall via OperatorHub.
 
 ## Usage
 
@@ -187,15 +186,6 @@ can leave it in an unusable state, even if the operator is able to resurrect the
 
 The only supported way to delete a `PersistentVolumeClaim` (or `PersistentVolume`) associated with a `SharedVolume`
 is to delete the `SharedVolume` and let the operator do the rest.
-
-### SecurityContextConstraints must be deleted manually
-Per [issue #23](https://github.com/openshift/aws-efs-operator/issues/23), uninstalling the operator may not clean up the `efs-csi-scc` SecurityContextConstraints. To delete it manually:
-
-```shell
-$ oc delete scc efs-csi-scc
-```
-
-This may require special permissions.
 
 ## Under the hood
 
