@@ -93,6 +93,7 @@ func init() {
 	loadDefTemplate(scDef, "storageclass.yaml")
 	StorageClassName = scDef.Name
 
+	// NOTE(efried): We can't SetOwner() yet because we don't have the CRD at this stage.
 	staticResources = []util.Ensurable{
 		&util.EnsurableImpl{
 			ObjType:        &corev1.ServiceAccount{},

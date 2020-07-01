@@ -7,11 +7,17 @@ This controller knows how to bootstrap these objects and watch them for changes
 */
 
 import (
+	"context"
 	"openshift/aws-efs-operator/pkg/util"
+	"time"
 
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -19,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+const svCRDName = "sharedvolumes.aws-efs.managed.openshift.io"
 
 var log = logf.Log.WithName("controller_statics")
 
@@ -70,6 +78,11 @@ type ReconcileStatics struct {
 func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
+	var (
+		crd *apiextensions.CustomResourceDefinition
+		err error
+	)
+
 	// We got this far, so it's a type we're watching that also passed our filter. That means it
 	// ought to be one of our statics.
 	s := findStatic(request.NamespacedName)
@@ -80,7 +93,32 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, nil
 	}
 
+	// Find the SharedVolume CRD, which will be set up to "own" the statics. This is the mechanism
+	// by which the statics get cleaned up when the operator is uninstalled.
+	// TODO(efried): Except for the SCC, which for some reason seems to ignore the OwnerReferences
+	// and not get deleted. This may be an upstream bug.
+	if crd, err = discoverCRD(r.client); err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("SharedVolume CRD has already been deleted. Skipping reconcile, awaiting demise.")
+			return reconcile.Result{}, nil
+		}
+		reqLogger.Error(err, "Couldn't retrieve SharedVolume CRD")
+		// Not sure under what circumstances this could happen, but... requeue after one second
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Millisecond * 1000}, nil
+	}
+	// If the CRD is being deleted, it means we're shutting down. Bail out to avoid thrashing (the
+	// deletion of the CRD triggers deletion of the statics, which we would otherwise try to
+	// restore below).
+	if crd.GetDeletionTimestamp() != nil {
+		reqLogger.Info("The SharedVolume CRD is being deleted, which means we're shutting down. Skipping reconcile.")
+		return reconcile.Result{}, nil
+	}
+
 	reqLogger.Info("Reconciling.", "request", request)
+
+	// Make sure the static is "owned" by the CRD.
+	// We need to do this here because we can't count on the CRD existing during static setup.
+	s.SetOwner(util.AsOwner(crd))
 
 	if err := s.Ensure(reqLogger, r.client); err != nil {
 		// TODO: Max retries so we don't get in a hard loop when the failure is something incurable?
@@ -88,4 +126,16 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// discoverCRD finds our SharedVolume CustomResourceDefinition.
+func discoverCRD(client crclient.Client) (*apiextensions.CustomResourceDefinition, error) {
+	crd := &apiextensions.CustomResourceDefinition{}
+	nsn := types.NamespacedName{
+		Name: svCRDName,
+	}
+	if err := client.Get(context.TODO(), nsn, crd); err != nil {
+		return nil, err
+	}
+	return crd, nil
 }
