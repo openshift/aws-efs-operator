@@ -24,7 +24,7 @@
         * Validate shared write access from pods in each namespace ✔
     * Multiple APs, same FS (should appear as separate data stores) ✔
         * Separate pods ✔
-        * Single pod with multiple volume defs -- [broken](https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/167)
+        * Single pod with multiple volume defs ✔
     * Separate APs on separate FSes (should appear as separate data stores) ✔
         * Separate pods ✔
         * Single pod with multiple volume defs ✔
