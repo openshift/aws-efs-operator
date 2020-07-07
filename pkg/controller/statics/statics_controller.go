@@ -11,6 +11,7 @@ import (
 	"openshift/aws-efs-operator/pkg/util"
 	"time"
 
+	"github.com/go-logr/logr"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -97,8 +98,11 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 	// by which the statics get cleaned up when the operator is uninstalled.
 	// TODO(efried): Except for the SCC, which for some reason seems to ignore the OwnerReferences
 	// and not get deleted. This may be an upstream bug.
+	// See https://github.com/openshift/aws-efs-operator/issues/23
 	if crd, err = discoverCRD(r.client); err != nil {
 		if errors.IsNotFound(err) {
+			// TODO(efried): Delete when https://github.com/openshift/aws-efs-operator/issues/23 is resolved.
+			deleteSCC(reqLogger, r.client)
 			reqLogger.Info("SharedVolume CRD has already been deleted. Skipping reconcile, awaiting demise.")
 			return reconcile.Result{}, nil
 		}
@@ -110,6 +114,8 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 	// deletion of the CRD triggers deletion of the statics, which we would otherwise try to
 	// restore below).
 	if crd.GetDeletionTimestamp() != nil {
+		// TODO(efried): Delete when https://github.com/openshift/aws-efs-operator/issues/23 is resolved.
+		deleteSCC(reqLogger, r.client)
 		reqLogger.Info("The SharedVolume CRD is being deleted, which means we're shutting down. Skipping reconcile.")
 		return reconcile.Result{}, nil
 	}
@@ -138,4 +144,14 @@ func discoverCRD(client crclient.Client) (*apiextensions.CustomResourceDefinitio
 		return nil, err
 	}
 	return crd, nil
+}
+
+// deleteSCC deletes the SecurityContextConstraints static.
+// TODO(efried): This is a *workaround* for https://github.com/openshift/aws-efs-operator/issues/23
+// It should be deleted when that issue is resolved (upstream, or here in some better way).
+func deleteSCC(logger logr.Logger, client crclient.Client) {
+	logger.Info("Manually deleting SecurityContextConstraints. See https://github.com/openshift/aws-efs-operator/issues/23")
+	scce := findStatic(types.NamespacedName{Name: sccName})
+	// Delete() does the logging. We're ignoring any errors.
+	scce.Delete(logger, client)
 }

@@ -162,15 +162,57 @@ func TestReconcileCRDVariants(t *testing.T) {
 	var (
 		crd *apiextensions.CustomResourceDefinition
 		err error
+		ctx = context.TODO()
 	)
 
-	// 1) We catch the CRD while it's being deleted
+	// Restores the state where a) our statics exist, b) the CRD is green.
+	reset := func() {
+		r.client.Delete(ctx, crd)
+		r.client.Create(ctx, &apiextensions.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: svCRDName,
+			},
+		})
+		for _, staticResource := range staticResources {
+			nsname := staticResource.GetNamespacedName()
+			r.Reconcile(reconcile.Request{NamespacedName: nsname})
+			obj := staticResource.GetType()
+			if err := r.client.Get(ctx, nsname, obj); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	// Makes sure the statics are in the expected state
+	// TODO(efried): The `expectSCC` param exists because of the workaround for
+	// https://github.com/openshift/aws-efs-operator/issues/23 and should be deleted when that is
+	// resolved.
+	check := func(expectSCC bool) {
+		for _, staticResource := range staticResources {
+			nsname := staticResource.GetNamespacedName()
+			obj := staticResource.GetType()
+			err = r.client.Get(ctx, nsname, obj)
+			// TODO(efried): Delete this conditional when https://github.com/openshift/aws-efs-operator/issues/23 is resolved.
+			if !expectSCC && nsname.Name == sccName {
+				if !errors.IsNotFound(err) {
+					t.Fatalf("Expected SCC to be gone, but err was %v", err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	// Setup
+	reset()
 	if crd, err = discoverCRD(r.client); err != nil {
 		t.Fatal(err)
 	}
+
+	// 1) We catch the CRD while it's being deleted
 	now := metav1.Now()
 	crd.SetDeletionTimestamp(&now)
-	if err := r.client.Update(context.TODO(), crd); err != nil {
+	if err := r.client.Update(ctx, crd); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,9 +227,13 @@ func TestReconcileCRDVariants(t *testing.T) {
 			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
 		}
 	}
+	// SCC manually deleted
+	check(false)
+
+	reset()
 
 	// 2) The CRD has already been deleted
-	if err := r.client.Delete(context.TODO(), crd); err != nil {
+	if err := r.client.Delete(ctx, crd); err != nil {
 		t.Fatal(err)
 	}
 
@@ -202,6 +248,10 @@ func TestReconcileCRDVariants(t *testing.T) {
 			t.Fatalf("Unexpected result.\nExpected: %v\nGot:     %v", test.NullResult, res)
 		}
 	}
+	// SCC manually deleted
+	check(false)
+
+	reset()
 
 	// 3) Error retrieving the CRD
 	realclient := r.client
@@ -222,7 +272,8 @@ func TestReconcileCRDVariants(t *testing.T) {
 			t.Fatalf("Unexpected result. Expected: requeue after 1s; Got: %v", res)
 		}
 	}
-
+	// The error path doesn't delete the SCC
+	check(true)
 }
 
 // TestReconcileUnexpected tests the code path where a resource we don't care about somehow makes it past the filter
