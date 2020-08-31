@@ -112,6 +112,7 @@ spec:
         # NOTE: This will hit infra nodes as well.
         node-role.kubernetes.io/worker: ''
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       tolerations:
         - operator: Exists
       containers:
