@@ -2,7 +2,9 @@
 
 # Boilerplate: change this, then you shouldn't have to muck with the
 # rest of the file.
-OPERATOR_NAME=aws-efs-operator
+# prefix var with _ so we don't clober the var used during the Make build
+# it probably doesn't matter but we can change it later.
+_OPERATOR_NAME=aws-efs-operator
 
 set -exv
 
@@ -13,22 +15,22 @@ GIT_HASH=$(git rev-parse --short=7 HEAD)
 GIT_COMMIT_COUNT=$(git rev-list $(git rev-list --max-parents=0 HEAD)..HEAD --count)
 
 # clone bundle repo
-SAAS_OPERATOR_DIR="saas-${OPERATOR_NAME}-bundle"
-BUNDLE_DIR="$SAAS_OPERATOR_DIR/${OPERATOR_NAME}/"
+SAAS_OPERATOR_DIR="saas-${_OPERATOR_NAME}-bundle"
+BUNDLE_DIR="$SAAS_OPERATOR_DIR/${_OPERATOR_NAME}/"
 
 rm -rf "$SAAS_OPERATOR_DIR"
 
 git clone \
     --branch "$BRANCH_CHANNEL" \
-    https://app:"${APP_SRE_BOT_PUSH_TOKEN}"@gitlab.cee.redhat.com/service/saas-${OPERATOR_NAME}-bundle.git \
+    https://app:"${APP_SRE_BOT_PUSH_TOKEN}"@gitlab.cee.redhat.com/service/saas-${_OPERATOR_NAME}-bundle.git \
     "$SAAS_OPERATOR_DIR"
 
 # remove any versions more recent than deployed hash
 REMOVED_VERSIONS=""
 if [[ "$REMOVE_UNDEPLOYED" == true ]]; then
     DEPLOYED_HASH=$(
-        curl -s "https://gitlab.cee.redhat.com/service/saas-osd-operators/raw/master/${OPERATOR_NAME}-services/${OPERATOR_NAME}.yaml" | \
-            docker run --rm -i evns/yq -r '.services[]|select(.name="'${OPERATOR_NAME}'").hash'
+        curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" | \
+            docker run --rm -i quay.io/app-sre/yq yq r - "resourceTemplates[*].targets(namespace.\$ref==/services/osd-operators/namespaces/hivep01ue1/${_OPERATOR_NAME}.yml).ref"
     )
 
     delete=false
@@ -68,11 +70,11 @@ if [ "$NEW_VERSION" = "$PREV_VERSION" ]; then
 fi
 
 # create package yaml
-cat <<EOF > $BUNDLE_DIR/${OPERATOR_NAME}.package.yaml
-packageName: ${OPERATOR_NAME}
+cat <<EOF > $BUNDLE_DIR/${_OPERATOR_NAME}.package.yaml
+packageName: ${_OPERATOR_NAME}
 channels:
 - name: $BRANCH_CHANNEL
-  currentCSV: ${OPERATOR_NAME}.v${NEW_VERSION}
+  currentCSV: ${_OPERATOR_NAME}.v${NEW_VERSION}
 EOF
 
 # add, commit & push
@@ -91,7 +93,7 @@ git push origin "$BRANCH_CHANNEL"
 popd
 
 # build the registry image
-REGISTRY_IMG="quay.io/app-sre/${OPERATOR_NAME}-registry"
+REGISTRY_IMG="quay.io/app-sre/${_OPERATOR_NAME}-registry"
 DOCKERFILE_REGISTRY="Dockerfile.olm-registry"
 
 cat <<EOF > $DOCKERFILE_REGISTRY
