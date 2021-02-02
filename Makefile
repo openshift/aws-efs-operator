@@ -1,3 +1,5 @@
+include boilerplate/generated-includes.mk
+
 SHELL := /usr/bin/env bash
 
 # TODO(efried): Clean up these temp files
@@ -27,3 +29,7 @@ docker-push: push
 .PHONY: pr-check
 pr-check:
 	hack/app_sre_pr_check.sh
+
+.PHONY: boilerplate-update
+boilerplate-update:
+	@boilerplate/update
