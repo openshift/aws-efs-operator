@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/openshift/library-go/pkg/operator/loglevel"
+	"github.com/openshift/library-go/pkg/operator/management"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
 	"github.com/openshift/library-go/pkg/operator/staticresourcecontroller"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -46,7 +47,7 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 
 	// Create GenericOperatorclient. This is used by the library-go controllers created down below
 	gvr := opv1.SchemeGroupVersion.WithResource("clustercsidrivers")
-	operatorClient, dynamicInformers, err := goc.NewClusterScopedOperatorClientWithConfigName(controllerConfig.KubeConfig, gvr, instanceName, goc.WithOptionalInstance())
+	operatorClient, dynamicInformers, err := goc.NewClusterScopedOperatorClientWithConfigName(controllerConfig.KubeConfig, gvr, instanceName, goc.WithFakeMissingInstance())
 	if err != nil {
 		return err
 	}
@@ -83,6 +84,9 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 			kubeInformersForNamespaces.InformersFor(operatorNamespace).Apps().V1().DaemonSets(),
 			controllerConfig.EventRecorder,
 		),
+		1)
+	cm = cm.WithController(
+		management.NewOperatorManagementStateController("AWSEFSManagementStateController", operatorClient, controllerConfig.EventRecorder),
 		1)
 
 	// TODO: add SharedVolume controller
