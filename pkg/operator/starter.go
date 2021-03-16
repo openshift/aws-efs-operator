@@ -8,8 +8,7 @@ import (
 
 	"github.com/openshift/library-go/pkg/operator/loglevel"
 	"github.com/openshift/library-go/pkg/operator/management"
-	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
-	"github.com/openshift/library-go/pkg/operator/staticresourcecontroller"
+	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -58,23 +57,6 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		loglevel.NewClusterOperatorLoggingController(operatorClient, controllerConfig.EventRecorder),
 		1)
 
-	// TODO: replace with manual create/update/delete
-	cm = cm.WithController(
-		staticresourcecontroller.NewStaticResourceController(
-			"AWSEFSDriverStaticResourcesController",
-			mustReplaceAsset(operatorNamespace),
-			[]string{
-				"csidriver.yaml",
-				"node_sa.yaml",
-				"rbac/node_privileged_binding.yaml",
-				"rbac/privileged_role.yaml",
-			},
-			resourceapply.NewClientHolder().WithKubernetes(kubeClient),
-			operatorClient,
-			controllerConfig.EventRecorder,
-		).AddKubeInformers(kubeInformersForNamespaces),
-		1)
-
 	cm = cm.WithController(
 		csidrivernodeservicecontroller.NewCSIDriverNodeServiceController(
 			"AWSEFSDriverNodeServiceController",
@@ -87,6 +69,21 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 		1)
 	cm = cm.WithController(
 		management.NewOperatorManagementStateController("AWSEFSManagementStateController", operatorClient, controllerConfig.EventRecorder),
+		1)
+
+	cm = cm.WithController(
+		NewCSIStaticResourceController(
+			"CSIStaticResourceController",
+			operatorNamespace,
+			operatorClient,
+			kubeClient,
+			kubeInformersForNamespaces,
+			controllerConfig.EventRecorder,
+			resourceread.ReadCSIDriverV1OrDie(mustReplaceNamespace(operatorNamespace, "csidriver.yaml")),
+			resourceread.ReadServiceAccountV1OrDie(mustReplaceNamespace(operatorNamespace, "node_sa.yaml")),
+			resourceread.ReadClusterRoleV1OrDie(mustReplaceNamespace(operatorNamespace, "rbac/privileged_role.yaml")),
+			resourceread.ReadClusterRoleBindingV1OrDie(mustReplaceNamespace(operatorNamespace, "rbac/node_privileged_binding.yaml")),
+		),
 		1)
 
 	// TODO: add SharedVolume controller
@@ -107,14 +104,4 @@ func RunOperator(ctx context.Context, controllerConfig *controllercmd.Controller
 func mustReplaceNamespace(namespace, file string) []byte {
 	content := generated.MustAsset(file)
 	return bytes.Replace(content, []byte(namespaceReplaceKey), []byte(namespace), -1)
-}
-
-func mustReplaceAsset(namespace string) resourceapply.AssetFunc {
-	return func(file string) ([]byte, error) {
-		content, err := generated.Asset(file)
-		if err != nil {
-			return nil, err
-		}
-		return bytes.Replace(content, []byte(namespaceReplaceKey), []byte(namespace), -1), nil
-	}
 }
