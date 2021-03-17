@@ -1,24 +1,29 @@
+# Template of CSV file, to be filled by operator-sdk generate bundle / make update.
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: aws-efs-operator-0.0.1
-  namespace: placeholder
+  name: aws-efs-operator.v4.8.0
+  namespace: openshift-operators
   annotations:
-    categories: ""
+    capabilities: Full Lifecycle
+    categories: "Storage"
     certified: "false"
     description: Management of AWS EFS read-write-many mounts.
     containerImage: quay.io/app-sre/aws-efs-operator:latest
     createdAt: "2020-04-18T21:43:33Z"
-    support: Eric Fried
+    support: Red Hat
+    repository: https://github.com/openshift/local-storage-operator
+
 spec:
-  displayName: aws-efs-operator
-  description: Management of AWS EFS read-write-many mounts.
+  displayName: AWS EFS CSI Driver Operator
+  description: Management of AWS EFS CSI driver and read-write-many mounts.
   keywords:
   - kubernetes
   - openshift
   - multi-cluster
   - cluster
-  version: 0.0.1
+  - EFS
+  version: 4.8.0
   provider:
     name: Red Hat, Inc
   maturity: alpha
@@ -33,13 +38,3 @@ spec:
     supported: true
   install:
     strategy: deployment
-    spec:
-      clusterPermissions:
-      - serviceAccountName: aws-efs-operator
-        # Rules will be added here by the generate-operator-bundle.py script.
-      deployments:
-      - name: aws-efs-operator
-        # Deployment spec will be added here by the generate-operator-bundle.py script.
-  customresourcedefinitions:
-    owned:
-    # CRD's will be added here by the generate-operator-bundle.py

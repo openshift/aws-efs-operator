@@ -1,0 +1,4 @@
+packageName: aws-efs-operator
+channels:
+- name: "4.8"
+  currentCSV: aws-efs-operator.v4.8.0
