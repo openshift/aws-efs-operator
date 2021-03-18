@@ -16,20 +16,16 @@ spec:
       containers:
         - name: aws-efs-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
-          command:
-          - aws-efs-operator
-          imagePullPolicy: Always
+          image: quay.io/jsafrane/efs:operator
+          args:
+           - start
+           - -v=5
+          imagePullPolicy: IfNotPresent
           env:
-            - name: WATCH_NAMESPACE
-              # We need to watch:
-              # - The namespace we're started in, which is where the daemonset will run
-              # - All the namespaces in which instances of our CR are created, which we
-              #   can't predict.
-              value: ""
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "aws-efs-operator"
+            - name: DRIVER_IMAGE
+              # TODO: use quay.io/openshift
+              value: amazon/aws-efs-csi-driver:v1.1.1
+            - name: NODE_DRIVER_REGISTRAR_IMAGE
+              value: quay.io/openshift/origin-csi-node-driver-registrar:latest
+            - name: LIVENESS_PROBE_IMAGE
+              value: quay.io/openshift/origin-csi-livenessprobe:latest

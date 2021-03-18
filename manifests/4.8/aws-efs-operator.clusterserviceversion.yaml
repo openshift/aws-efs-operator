@@ -108,21 +108,18 @@ spec:
                 name: aws-efs-operator
             spec:
               containers:
-              - command:
-                - aws-efs-operator
+              - args:
+                - start
+                - -v=5
                 env:
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: OPERATOR_NAME
-                  value: aws-efs-operator
-                image: REPLACE_IMAGE
-                imagePullPolicy: Always
+                - name: DRIVER_IMAGE
+                  value: amazon/aws-efs-csi-driver:v1.1.1
+                - name: NODE_DRIVER_REGISTRAR_IMAGE
+                  value: quay.io/openshift/origin-csi-node-driver-registrar:latest
+                - name: LIVENESS_PROBE_IMAGE
+                  value: quay.io/openshift/origin-csi-livenessprobe:latest
+                image: quay.io/jsafrane/efs:operator
+                imagePullPolicy: IfNotPresent
                 name: aws-efs-operator
                 resources: {}
               serviceAccountName: aws-efs-operator
