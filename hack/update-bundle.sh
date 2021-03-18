@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Update manifests/$MINORVERSION.
+# Update manifests/$MINORVERSION and test/bundle/
 
 REPO_ROOT="$(dirname "$0")/.."
 
@@ -24,3 +24,6 @@ operator-sdk generate bundle --input-dir $REPO_ROOT/deploy --version "$FULLVERSI
 # operator-sdk adds manifests/ to the output-dir, remove it
 mv $OUTDIR/manifests/* $OUTDIR
 rmdir $OUTDIR/manifests
+
+# Update test/bundle too
+cp $OUTDIR/* $REPO_ROOT/test/bundle/manifests
