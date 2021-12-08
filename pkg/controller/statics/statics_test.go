@@ -24,7 +24,6 @@ func TestEnsureStatics(t *testing.T) {
 	// Future-proof this test against new statics being added.
 	checkNumStatics(t)
 
-	logf.SetLogger(logf.ZapLogger(true))
 	logger := logf.Log.Logger
 	ctx := context.TODO()
 	var statics map[string]runtime.Object

@@ -27,7 +27,6 @@ import (
 // TODO: Test add()/watches somehow?
 
 func setup() (logr.Logger, *ReconcileStatics) {
-	logf.SetLogger(logf.ZapLogger(true))
 
 	// OpenShift types need to be registered explicitly
 	scheme.Scheme.AddKnownTypes(securityv1.SchemeGroupVersion, &securityv1.SecurityContextConstraints{})
