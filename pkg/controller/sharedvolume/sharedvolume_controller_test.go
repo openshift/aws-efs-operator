@@ -347,8 +347,13 @@ func TestReconcile(t *testing.T) {
 	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
 		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
 	}
+
 	// validateResources proves the PV and PVC came back.
 	svMap, pvMap, _ = validateResources(t, r.client, 2)
+
+	// The PV came back but we need to update the local cached version of the PV since its at
+	// revision 2 and the server version after the delete and Ensure is now at revision 1
+	pv = pvMap[pvname]
 
 	// Hit some uneditSharedVolume corner cases. These will panic in uneditSharedVolume, which is
 	// recovered and spoofed as a non-error on the theory that the main Reconcile should overwrite
