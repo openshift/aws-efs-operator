@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/kubelet/util/sliceutils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -198,7 +197,7 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 // ensureFinalizer makes sure the `sharedVolume` has our finalizer registered.
 // The `bool` return indicates whether an update was pushed to the server.
 func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) (bool, error) {
-	if sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
+	if util.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
 		return false, nil
 	}
 	logger.Info("Registering finalizer")
@@ -211,7 +210,7 @@ func (r *ReconcileSharedVolume) ensureFinalizer(logger logr.Logger, sharedVolume
 }
 
 func (r *ReconcileSharedVolume) handleDelete(logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) error {
-	if !sliceutils.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
+	if !util.StringInSlice(svFinalizer, sharedVolume.GetFinalizers()) {
 		// Nothing to do
 		return nil
 	}

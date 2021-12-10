@@ -20,14 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 // TODO: Test add()/watches somehow?
 
 func setup() (logr.Logger, *ReconcileStatics) {
-	logf.SetLogger(logf.ZapLogger(true))
 
 	// OpenShift types need to be registered explicitly
 	scheme.Scheme.AddKnownTypes(securityv1.SchemeGroupVersion, &securityv1.SecurityContextConstraints{})

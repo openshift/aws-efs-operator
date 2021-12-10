@@ -5,93 +5,40 @@
 package fixtures
 
 import (
+	reflect "reflect"
+
 	logr "github.com/go-logr/logr"
 	gomock "github.com/golang/mock/gomock"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	types "k8s.io/apimachinery/pkg/types"
-	reflect "reflect"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// MockEnsurable is a mock of Ensurable interface
+// MockEnsurable is a mock of Ensurable interface.
 type MockEnsurable struct {
 	ctrl     *gomock.Controller
 	recorder *MockEnsurableMockRecorder
 }
 
-// MockEnsurableMockRecorder is the mock recorder for MockEnsurable
+// MockEnsurableMockRecorder is the mock recorder for MockEnsurable.
 type MockEnsurableMockRecorder struct {
 	mock *MockEnsurable
 }
 
-// NewMockEnsurable creates a new mock instance
+// NewMockEnsurable creates a new mock instance.
 func NewMockEnsurable(ctrl *gomock.Controller) *MockEnsurable {
 	mock := &MockEnsurable{ctrl: ctrl}
 	mock.recorder = &MockEnsurableMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEnsurable) EXPECT() *MockEnsurableMockRecorder {
 	return m.recorder
 }
 
-// GetType mocks base method
-func (m *MockEnsurable) GetType() runtime.Object {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetType")
-	ret0, _ := ret[0].(runtime.Object)
-	return ret0
-}
-
-// GetType indicates an expected call of GetType
-func (mr *MockEnsurableMockRecorder) GetType() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockEnsurable)(nil).GetType))
-}
-
-// GetNamespacedName mocks base method
-func (m *MockEnsurable) GetNamespacedName() types.NamespacedName {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNamespacedName")
-	ret0, _ := ret[0].(types.NamespacedName)
-	return ret0
-}
-
-// GetNamespacedName indicates an expected call of GetNamespacedName
-func (mr *MockEnsurableMockRecorder) GetNamespacedName() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespacedName", reflect.TypeOf((*MockEnsurable)(nil).GetNamespacedName))
-}
-
-// SetOwner mocks base method
-func (m *MockEnsurable) SetOwner(arg0 *v1.OwnerReference) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetOwner", arg0)
-}
-
-// SetOwner indicates an expected call of SetOwner
-func (mr *MockEnsurableMockRecorder) SetOwner(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetOwner", reflect.TypeOf((*MockEnsurable)(nil).SetOwner), arg0)
-}
-
-// Ensure mocks base method
-func (m *MockEnsurable) Ensure(arg0 logr.Logger, arg1 client.Client) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Ensure", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Ensure indicates an expected call of Ensure
-func (mr *MockEnsurableMockRecorder) Ensure(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ensure", reflect.TypeOf((*MockEnsurable)(nil).Ensure), arg0, arg1)
-}
-
-// Delete mocks base method
+// Delete mocks base method.
 func (m *MockEnsurable) Delete(arg0 logr.Logger, arg1 client.Client) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
@@ -99,8 +46,62 @@ func (m *MockEnsurable) Delete(arg0 logr.Logger, arg1 client.Client) error {
 	return ret0
 }
 
-// Delete indicates an expected call of Delete
+// Delete indicates an expected call of Delete.
 func (mr *MockEnsurableMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockEnsurable)(nil).Delete), arg0, arg1)
+}
+
+// Ensure mocks base method.
+func (m *MockEnsurable) Ensure(arg0 logr.Logger, arg1 client.Client) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ensure", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ensure indicates an expected call of Ensure.
+func (mr *MockEnsurableMockRecorder) Ensure(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ensure", reflect.TypeOf((*MockEnsurable)(nil).Ensure), arg0, arg1)
+}
+
+// GetNamespacedName mocks base method.
+func (m *MockEnsurable) GetNamespacedName() types.NamespacedName {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespacedName")
+	ret0, _ := ret[0].(types.NamespacedName)
+	return ret0
+}
+
+// GetNamespacedName indicates an expected call of GetNamespacedName.
+func (mr *MockEnsurableMockRecorder) GetNamespacedName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespacedName", reflect.TypeOf((*MockEnsurable)(nil).GetNamespacedName))
+}
+
+// GetType mocks base method.
+func (m *MockEnsurable) GetType() runtime.Object {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetType")
+	ret0, _ := ret[0].(runtime.Object)
+	return ret0
+}
+
+// GetType indicates an expected call of GetType.
+func (mr *MockEnsurableMockRecorder) GetType() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockEnsurable)(nil).GetType))
+}
+
+// SetOwner mocks base method.
+func (m *MockEnsurable) SetOwner(arg0 *v1.OwnerReference) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetOwner", arg0)
+}
+
+// SetOwner indicates an expected call of SetOwner.
+func (mr *MockEnsurableMockRecorder) SetOwner(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetOwner", reflect.TypeOf((*MockEnsurable)(nil).SetOwner), arg0)
 }
