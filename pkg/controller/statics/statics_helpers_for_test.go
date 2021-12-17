@@ -13,7 +13,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -62,7 +61,7 @@ func checkStatics(t *testing.T, client crclient.Client) map[string]runtime.Objec
 		},
 		{
 			"CSIDriver",
-			&storagev1beta1.CSIDriver{},
+			&storagev1.CSIDriver{},
 			types.NamespacedName{Name: CSIDriverName},
 		},
 		{

@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -160,7 +159,7 @@ func Test_static_GetType(t *testing.T) {
 	}
 	// CSIDriver
 	nsn = types.NamespacedName{Name: CSIDriverName}
-	if _, ok := findStatic(nsn).GetType().(*storagev1beta1.CSIDriver); !ok {
+	if _, ok := findStatic(nsn).GetType().(*storagev1.CSIDriver); !ok {
 		t.Fatal("GetType() returned the wrong type for CSIDriver static resource.")
 	}
 	// StorageClass
@@ -241,7 +240,7 @@ func Test_storageClassEqual(t *testing.T) {
 }
 
 func Test_csiDriverEqual(t *testing.T) {
-	cd1 := staticResourceMap[CSIDriverName].(*util.EnsurableImpl).Definition.(*storagev1beta1.CSIDriver)
+	cd1 := staticResourceMap[CSIDriverName].(*util.EnsurableImpl).Definition.(*storagev1.CSIDriver)
 	cd2 := cd1.DeepCopy()
 
 	if !csiDriverEqual(cd1, cd1) {
