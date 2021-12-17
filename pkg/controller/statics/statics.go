@@ -18,7 +18,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
@@ -85,7 +84,7 @@ func init() {
 	dsDef.SetNamespace(namespaceName)
 	daemonSetName = dsDef.Name
 
-	csiDef := &storagev1beta1.CSIDriver{}
+	csiDef := &storagev1.CSIDriver{}
 	loadDefTemplate(csiDef, "csidriver.yaml")
 	CSIDriverName = csiDef.Name
 
@@ -115,7 +114,7 @@ func init() {
 			EqualFunc:      daemonSetEqual,
 		},
 		&util.EnsurableImpl{
-			ObjType:        &storagev1beta1.CSIDriver{},
+			ObjType:        &storagev1.CSIDriver{},
 			NamespacedName: getNSName(csiDef),
 			Definition:     csiDef,
 			EqualFunc:      csiDriverEqual,
@@ -211,8 +210,8 @@ func EnsureStatics(log logr.Logger, client crclient.Client) error {
 
 func csiDriverEqual(local, server runtime.Object) bool {
 	return reflect.DeepEqual(
-		local.(*storagev1beta1.CSIDriver).Spec,
-		server.(*storagev1beta1.CSIDriver).Spec,
+		local.(*storagev1.CSIDriver).Spec,
+		server.(*storagev1.CSIDriver).Spec,
 	)
 }
 
