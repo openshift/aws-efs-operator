@@ -1,3 +1,4 @@
+FIPS_ENABLED=true
 include boilerplate/generated-includes.mk
 
 # TODO: Remove once app-iterface ci.ext job is gone
