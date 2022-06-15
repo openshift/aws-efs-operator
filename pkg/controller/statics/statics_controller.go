@@ -119,7 +119,6 @@ func (r *ReconcileStatics) Reconcile(request reconcile.Request) (reconcile.Resul
 		reqLogger.Info("The SharedVolume CRD is being deleted, which means we're shutting down. Skipping reconcile.")
 		return reconcile.Result{}, nil
 	}
-
 	reqLogger.Info("Reconciling.", "request", request)
 
 	// Make sure the static is "owned" by the CRD.
@@ -153,5 +152,6 @@ func deleteSCC(logger logr.Logger, client crclient.Client) {
 	logger.Info("Manually deleting SecurityContextConstraints. See https://github.com/openshift/aws-efs-operator/issues/23")
 	scce := findStatic(types.NamespacedName{Name: sccName})
 	// Delete() does the logging. We're ignoring any errors.
-	scce.Delete(logger, client)
+	err := scce.Delete(logger, client)
+	logger.Error(err, "Error in manually deleting SecurityContextConstraints")
 }

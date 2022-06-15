@@ -20,6 +20,7 @@ linters:
   - errcheck
   - gosimple
   - govet
+  - gosec
   - ineffassign
   - staticcheck
   - structcheck

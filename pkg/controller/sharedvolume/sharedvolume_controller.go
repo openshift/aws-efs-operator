@@ -120,7 +120,10 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 
 	// Deleting?
 	if sharedVolume.GetDeletionTimestamp() != nil {
-		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeDeleting, "")
+		err := r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeDeleting, "")
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{}, r.handleDelete(reqLogger, sharedVolume)
 	}
 
@@ -175,8 +178,11 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 		// an error path whose behavior we don't want to disrupt.
 		// Note that we don't clear Status.ClaimRef: if it's set, it might help track
 		// down the cause of the error.
-		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
-		return reconcile.Result{}, err
+		err := r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
 	}
 
 	pvcnsname := pvce.GetNamespacedName()
@@ -186,8 +192,11 @@ func (r *ReconcileSharedVolume) Reconcile(request reconcile.Request) (reconcile.
 		// an error path whose behavior we don't want to disrupt.
 		// Note that we don't clear Status.ClaimRef: if it's set, it might help track
 		// down the cause of the error.
-		r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
-		return reconcile.Result{}, err
+		err := r.markStatus(reqLogger, sharedVolume, awsefsv1alpha1.SharedVolumeFailed, err.Error())
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
 	}
 
 	// If we got this far, the PV/PVC are good (as far as we can tell).
