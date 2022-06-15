@@ -19,7 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	// TODO: pkg/client/fake is deprecated, replace with pkg/envtest
+	"sigs.k8s.io/controller-runtime/pkg/client/fake" //nolint:staticcheck
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -35,12 +37,14 @@ func setup() (logr.Logger, *ReconcileStatics) {
 
 	client := fake.NewFakeClientWithScheme(scheme.Scheme)
 
-	// The SharedVolume CRD has to exist for the reconciler to work
-	client.Create(context.TODO(), &apiextensions.CustomResourceDefinition{
+	err := client.Create(context.TODO(), &apiextensions.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: svCRDName,
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	return logf.Log.Logger, &ReconcileStatics{client: client, scheme: scheme.Scheme}
 }
@@ -166,19 +170,29 @@ func TestReconcileCRDVariants(t *testing.T) {
 
 	// Restores the state where a) our statics exist, b) the CRD is green.
 	reset := func() {
-		r.client.Delete(ctx, crd)
-		r.client.Create(ctx, &apiextensions.CustomResourceDefinition{
+		if err = r.client.Delete(ctx, crd); err != nil && !errors.IsNotFound(err) {
+			t.Log(err)
+		}
+
+		err = r.client.Create(ctx, &apiextensions.CustomResourceDefinition{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: svCRDName,
 			},
 		})
+		if err != nil {
+			t.Log(err)
+		}
 		for _, staticResource := range staticResources {
 			nsname := staticResource.GetNamespacedName()
-			r.Reconcile(reconcile.Request{NamespacedName: nsname})
+			if _, err := r.Reconcile(reconcile.Request{NamespacedName: nsname}); err != nil {
+				t.Fatal(err)
+			}
+
 			obj := staticResource.GetType()
 			if err := r.client.Get(ctx, nsname, obj); err != nil {
 				t.Fatal(err)
 			}
+
 		}
 	}
 
