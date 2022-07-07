@@ -19,6 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	// TODO: pkg/client/fake is deprecated, replace with pkg/envtest
+	// nolint:staticcheck
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -96,16 +99,19 @@ func getResources(t *testing.T, client crclient.Client) (svMapType, pvMapType, p
 	}
 
 	svMap := make(map[string]*awsefsv1alpha1.SharedVolume)
-	for _, sv := range svList.Items {
-		svMap[keyfunc(&sv)] = &sv
+	for i := range svList.Items {
+		sharedVolume := &svList.Items[i]
+		svMap[keyfunc(sharedVolume)] = sharedVolume
 	}
 	pvMap := make(map[string]*corev1.PersistentVolume)
-	for _, pv := range pvList.Items {
-		pvMap[keyfunc(&pv)] = &pv
+	for i := range pvList.Items {
+		persistentVolume := &pvList.Items[i]
+		pvMap[keyfunc(persistentVolume)] = persistentVolume
 	}
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
-	for _, pvc := range pvcList.Items {
-		pvcMap[keyfunc(&pvc)] = &pvc
+	for i := range pvcList.Items {
+		persistentVolumeClaim := &pvcList.Items[i]
+		pvcMap[keyfunc(persistentVolumeClaim)] = persistentVolumeClaim
 	}
 
 	return svMap, pvMap, pvcMap
@@ -273,11 +279,19 @@ func TestReconcile(t *testing.T) {
 			FileSystemID:  fs1,
 		},
 	}
-	r.client.Create(ctx, sv2)
+	if err = r.client.Create(ctx, sv2); err != nil {
+		t.Fatalf("Error creating SharedVolume: %v", err)
+	}
 	req = makeRequest(t, sv2)
-	r.Reconcile(req)
-	r.Reconcile(req)
-	r.Reconcile(req)
+	if res, err = r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Fatalf("Expected requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
+	if res, err = r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Fatalf("Expected requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
+	if res, err = r.Reconcile(req); res != test.NullResult || err != nil {
+		t.Fatalf("Expected no requeue, no error; got\nresult: %v\nerr: %v", res, err)
+	}
 	svMap, _, _ = validateResources(t, r.client, 2)
 
 	// Test the `uneditSharedVolume` path: If we change sv2's FSID and APID, Reconcile ought to revert them.
@@ -708,12 +722,15 @@ func TestEnsureFails(t *testing.T) {
 	if err := r.client.Create(ctx, sv); err != nil {
 		t.Fatal(err)
 	}
+
 	req := makeRequest(t, sv)
 
-	// First Reconcile sets the finalizer
-	r.Reconcile(req)
-	// Second initializes the Status
-	r.Reconcile(req)
+	if res, err := r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Fatalf("Expected requeue result, no error, but got\nresult: %v\nerr: %v", res, err)
+	}
+	if res, err := r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Fatalf("Expected requeue result, no error, but got\nresult: %v\nerr: %v", res, err)
+	}
 
 	svMap, pvMap, pvcMap := getResources(t, r.client)
 	if len(svMap) != 1 || len(pvMap) != 0 || len(pvcMap) != 0 {
@@ -807,9 +824,15 @@ func TestHandleDeleteFails(t *testing.T) {
 	// It takes three Reconciles to get to steady state. This sequence is validated thoroughly in
 	// TestReconcile, so just rough it up here.
 	req := makeRequest(t, sv)
-	r.Reconcile(req)
-	r.Reconcile(req)
-	r.Reconcile(req)
+	if res, err := r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Errorf("Expected requeue and no error, got\nresult: %v\nerr: %v", res, err)
+	}
+	if res, err := r.Reconcile(req); res != test.RequeueResult || err != nil {
+		t.Errorf("Expected requeue and no error, got\nresult: %v\nerr: %v", res, err)
+	}
+	if res, err := r.Reconcile(req); res != test.NullResult || err != nil {
+		t.Errorf("Expected no requeue and a error, got\nresult: %v\nerr: %v", res, err)
+	}
 	// This proves our SV/PV/PVC are all present and accounted for
 	svMap, _, _ := validateResources(t, r.client, 1)
 	sv = svMap["proj1/sv"]
