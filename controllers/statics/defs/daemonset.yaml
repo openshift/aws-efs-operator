@@ -1,0 +1,118 @@
+# Source: https://raw.githubusercontent.com/kubernetes-sigs/aws-efs-csi-driver/51d19a433dcfc47fbb7b7a0e1c8ff6ab98ce87e9/deploy/kubernetes/base/node.yaml
+# Changes tagged with DELTA: comments
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: efs-csi-node
+  # DELTA: Use a custom namespace rather than kube-system
+  # The namespace is populated dynamically by the operator.
+spec:
+  selector:
+    matchLabels:
+      app: efs-csi-node
+  template:
+    metadata:
+      labels:
+        app: efs-csi-node
+    spec:
+      # DELTA: Added
+      serviceAccountName: efs-csi-sa
+      # DELTA: Removed
+      # priorityClassName: system-node-critical
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+        # DELTA: only deploy this on worker nodes
+        # NOTE: This will hit infra nodes as well.
+        node-role.kubernetes.io/worker: ''
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: efs-plugin
+          securityContext:
+            privileged: true
+          # DELTA: fq image
+          # TODO(efried): Pin to a release
+          #  https://github.com/kubernetes-sigs/aws-efs-csi-driver/issues/152
+          # For now, freeze to a known working commit tag
+          image: registry.hub.docker.com/amazon/aws-efs-csi-driver:778131e
+          # DELTA: Always pull
+          imagePullPolicy: Always
+          args:
+            - --endpoint=$(CSI_ENDPOINT)
+            - --logtostderr
+            - --v=5
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:/csi/csi.sock
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - name: plugin-dir
+              mountPath: /csi
+            - name: efs-state-dir
+              mountPath: /var/run/efs
+          ports:
+            - containerPort: 9809
+              hostPort: 9809
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+            failureThreshold: 5
+        - name: csi-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+          # DELTA: Always pull
+          imagePullPolicy: Always
+          args:
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+            - --v=5
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/efs.csi.aws.com/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: liveness-probe
+          imagePullPolicy: Always
+          image: quay.io/k8scsi/livenessprobe:v2.0.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9809
+          volumeMounts:
+            - mountPath: /csi
+              name: plugin-dir
+      volumes:
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/efs.csi.aws.com/
+            type: DirectoryOrCreate
+        - name: efs-state-dir
+          hostPath:
+            path: /var/run/efs
+            type: DirectoryOrCreate

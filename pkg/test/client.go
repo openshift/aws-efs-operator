@@ -3,7 +3,7 @@ package test
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -50,7 +50,7 @@ func clientOverride(behavior []error, numCalls int) error {
 }
 
 // Get overrides the fake client's Get, conditionally bypassing it and returning an error instead.
-func (f *FakeClientWithCustomErrors) Get(ctx context.Context, key crclient.ObjectKey, obj runtime.Object) error {
+func (f *FakeClientWithCustomErrors) Get(ctx context.Context, key crclient.ObjectKey, obj crclient.Object) error {
 	// Always increment the call count, but not until we're done.
 	defer func() { f.numGetCalls++ }()
 	if err := clientOverride(f.GetBehavior, f.numGetCalls); err != nil {
@@ -61,7 +61,7 @@ func (f *FakeClientWithCustomErrors) Get(ctx context.Context, key crclient.Objec
 }
 
 // Delete overrides the fake client's Delete, conditionally bypassing it and returning an error instead.
-func (f *FakeClientWithCustomErrors) Delete(ctx context.Context, obj runtime.Object, opts ...crclient.DeleteOption) error {
+func (f *FakeClientWithCustomErrors) Delete(ctx context.Context, obj crclient.Object, opts ...crclient.DeleteOption) error {
 	// Always increment the call count, but not until we're done.
 	defer func() { f.numDeleteCalls++ }()
 	if err := clientOverride(f.DeleteBehavior, f.numDeleteCalls); err != nil {
@@ -72,7 +72,7 @@ func (f *FakeClientWithCustomErrors) Delete(ctx context.Context, obj runtime.Obj
 }
 
 // Update overrides the fake client's Update, conditionally bypassing it and returning an error instead.
-func (f *FakeClientWithCustomErrors) Update(ctx context.Context, obj runtime.Object, opts ...crclient.UpdateOption) error {
+func (f *FakeClientWithCustomErrors) Update(ctx context.Context, obj crclient.Object, opts ...crclient.UpdateOption) error {
 	// Always increment the call count, but not until we're done.
 	defer func() { f.numUpdateCalls++ }()
 	if err := clientOverride(f.UpdateBehavior, f.numUpdateCalls); err != nil {

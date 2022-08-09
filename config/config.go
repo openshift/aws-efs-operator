@@ -14,7 +14,14 @@
 
 package config
 
+import (
+	"time"
+)
+
+
 const (
 	OperatorName      string = "aws-efs-operator"
 	OperatorNamespace string = "openshift-aws-efs"
+	// SyncPeriodDefault reconciles a sync period for each controller
+	SyncPeriodDefault = 5 * time.Minute
 )

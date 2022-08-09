@@ -8,4 +8,4 @@ package fixtures
 //    GO111MODULE=on go get github.com/golang/mock/mockgen@latest
 
 //go:generate mockgen -destination ./zz_generated_mock_crclient.go -package fixtures sigs.k8s.io/controller-runtime/pkg/client Client
-//go:generate mockgen -destination ./zz_generated_mock_logr.go -package fixtures github.com/go-logr/logr Logger
+

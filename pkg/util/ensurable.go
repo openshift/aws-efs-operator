@@ -15,7 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	// "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -23,7 +23,7 @@ import (
 // Ensurable provides helpers to allow ensuring the existence and state of a resource.
 type Ensurable interface {
 	// GetType returns a unique, empty runtime.Object of the specific type of the ensurable resource.
-	GetType() runtime.Object
+	GetType() crclient.Object
 	// GetNamespacedName returns the `NamespacedName` for the resource. This can be used to identify
 	// the Ensurable associated with a `reconcile.Request`.
 	GetNamespacedName() types.NamespacedName
@@ -38,21 +38,21 @@ type Ensurable interface {
 
 // EnsurableImpl provides the implementation of the Ensurable interface.
 type EnsurableImpl struct {
-	ObjType        runtime.Object
+	ObjType        crclient.Object
 	NamespacedName types.NamespacedName
-	Definition     runtime.Object
-	EqualFunc      func(local, server runtime.Object) bool
+	Definition     crclient.Object
+	EqualFunc      func(local, server crclient.Object) bool
 	owner          *metav1.OwnerReference
-	latestVersion  runtime.Object
+	latestVersion  crclient.Object
 }
 
 // GetType implements Ensurable.
-func (e *EnsurableImpl) GetType() runtime.Object {
+func (e *EnsurableImpl) GetType() crclient.Object {
 	// To make this "safe", we return a _copy_ of e.objType. The caller is expecting to be able to
 	// use this e.g. to receive a real object from the server, and we don't want that data going into our
 	// EnsurableImpl instance. For one thing, maybe the _next_ caller is expecting it to be empty. For another,
 	// multiple threads using the same instance would be bad. Like crossing the streams.
-	return e.ObjType.DeepCopyObject()
+	return e.ObjType.DeepCopyObject().(crclient.Object)
 }
 
 // GetNamespacedName implements Ensurable.
@@ -151,18 +151,18 @@ func (e *EnsurableImpl) Delete(log logr.Logger, client crclient.Client) error {
 
 // AlwaysEqual is a convenience implementation of Ensurable.equalFunc for objects that can't change
 // (in any significant way)
-func AlwaysEqual(local, server runtime.Object) bool {
+func AlwaysEqual(local, server crclient.Object) bool {
 	return true
 }
 
 // EqualOtherThanMeta is a DeepEquals that ignores ObjectMeta and TypeMeta.
 // Use when a DeepEqual on Spec won't work, e.g. when the meat of the object is at the top level
 // and/or there _is_ no Spec.
-func EqualOtherThanMeta(local, server runtime.Object) bool {
+func EqualOtherThanMeta(local, server crclient.Object) bool {
 	return cmp.Equal(local, server, cmpopts.IgnoreTypes(metav1.ObjectMeta{}, metav1.TypeMeta{}))
 }
 
-func (e *EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtime.Object) {
+func (e *EnsurableImpl) latestDefinition(serverObj crclient.Object) (bool, crclient.Object) {
 	// If we cached one, use it, because it's not only right, it's complete
 	def := e.latestVersion
 	if def == nil {
@@ -196,7 +196,7 @@ func (e *EnsurableImpl) latestDefinition(serverObj runtime.Object) (bool, runtim
 // mean they're 100% equal in all fields and values -- just the ones we care about.
 // Importantly, the `local` object is either the `Definition` or pulled from the
 // cache; and the `server` object is the one just retrieved from the server.
-func (e *EnsurableImpl) equal(local, server runtime.Object) bool {
+func (e *EnsurableImpl) equal(local, server crclient.Object) bool {
 	// The server object must have its owner reference set, if applicable
 	// NOTE(efried): Assumes we're the only one mucking with owner references
 	if e.owner != nil && len(server.(metav1.Object).GetOwnerReferences()) != 1 {
@@ -216,7 +216,7 @@ func (e *EnsurableImpl) equal(local, server runtime.Object) bool {
 
 // VersionsEqual compares the generation of two objects. This can be used first in an `equal`
 // because if the generation hasn't changed, there's no need to check further.
-func VersionsEqual(local, server runtime.Object) bool {
+func VersionsEqual(local, server crclient.Object) bool {
 	// If this isn't an object that tracks generation, this check isn't useful
 	serverVersion := server.(metav1.Object).GetResourceVersion()
 	if serverVersion == "" {

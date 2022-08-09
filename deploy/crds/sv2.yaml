@@ -1,7 +1,0 @@
-apiVersion: aws-efs.managed.openshift.io/v1alpha1
-kind: SharedVolume
-metadata:
-  name: sv2
-spec:
-  accessPointID: fsap-abc123
-  fileSystemID: fs-deadbeef

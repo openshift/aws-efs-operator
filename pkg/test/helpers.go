@@ -9,7 +9,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	// "k8s.io/apimachinery/pkg/runtime"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
+	
 	"sigs.k8s.io/yaml"
 )
 
@@ -30,7 +32,7 @@ func LoadYAML(t *testing.T, obj interface{}, filename string) {
 // DoDiff deep-compares two `runtime.Object`s and fails the `t`est with a useful message (showing
 // the diff) if they differ. `expectLabel` indicates whether we expect `actual` to be labeled for
 // our watchers.
-func DoDiff(t *testing.T, expected, actual runtime.Object, expectLabel bool) {
+func DoDiff(t *testing.T, expected, actual crclient.Object, expectLabel bool) {
 	diff := cmp.Diff(expected, actual, diffOpts...)
 	if diff != "" {
 		t.Fatal("Objects differ: -expected, +actual\n", diff)
