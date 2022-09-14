@@ -1,4 +1,5 @@
 # Temporary Build Files
+bin/
 build/_output
 build/_test
 .venv
