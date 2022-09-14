@@ -1,5 +1,4 @@
 FROM quay.io/app-sre/boilerplate:image-v2.3.2 AS builder
-FROM golang:1.17 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
