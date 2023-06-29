@@ -21,6 +21,13 @@ objects:
     image: ${REGISTRY_IMG}:${CHANNEL}-${IMAGE_TAG}
     displayName: aws-efs-operator Registry
     publisher: SRE
+    grpcPodConfig:
+      nodeSelector:
+        node-role.kubernetes.io: infra
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/infra
+          operator: Exists
 
 - apiVersion: operators.coreos.com/v1alpha2
   kind: OperatorGroup
