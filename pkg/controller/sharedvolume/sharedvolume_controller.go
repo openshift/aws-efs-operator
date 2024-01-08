@@ -334,7 +334,6 @@ func (r *ReconcileSharedVolume) uneditSharedVolume(
 	logger logr.Logger, sharedVolume *awsefsv1alpha1.SharedVolume) (updated bool, err error) {
 
 	updated = false
-	err = nil
 	pv := &corev1.PersistentVolume{}
 	// Take advantage of the predictable naming convention to look for our PV
 	pvname := pvNameForSharedVolume(sharedVolume)
