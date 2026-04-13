@@ -236,3 +236,4 @@ Though the `PersistentVolume` is technically cluster-scoped, it is inextricably 
 `PersistentVolumeClaim`, which is namespace-scoped.
 
 See the [design](DESIGN.md) for more.
+
